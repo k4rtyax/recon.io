@@ -1,0 +1,3 @@
+# recon.io — no external Python dependencies required.
+# All modules use Python stdlib only.
+# External CLI tools (subfinder, nmap, httpx, etc.) are listed in README.md.
