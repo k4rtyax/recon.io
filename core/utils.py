@@ -3,7 +3,7 @@ import shutil
 import subprocess
 from datetime import datetime
 
-# ─── WARNA TERMINAL (minimal, tidak mencolok) ────────────────────
+# ─── WARNA TERMINAL ────────────────────
 RESET  = "\033[0m"
 BOLD   = "\033[1m"
 DIM    = "\033[2m"
