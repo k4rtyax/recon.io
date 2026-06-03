@@ -1,9 +1,10 @@
 """
 Fase 9: Directory Bruteforce
-Menggunakan dirb atau ffuf (fallback).
+Menggunakan ffuf (modern Go-based fuzzer) sebagai default utama.
 """
 
 import os
+import json
 from core.utils import info, warn, run as exec_cmd, tool_available
 from config import DEFAULT_USER_AGENT, TIMEOUTS, TOOLS, WORDLIST_PATHS
 
@@ -20,35 +21,18 @@ def run(target: str, target_dir: str):
     url       = f"https://{target}"
     wordlist  = _find_wordlist()
     result_file = os.path.join(out, "dirb_results.txt")
+    ffuf_out  = os.path.join(out, "ffuf_results.json")
     t = TIMEOUTS["dirbrute"]
 
     if not wordlist:
         warn("wordlist tidak ditemukan, dirbrute dilewati")
-        warn("install: apt install dirb seclists")
-        warn("atau set env: RECON_WORDLIST=/path/to/wordlist.txt")
+        warn("set env: RECON_WORDLIST=/path/to/wordlist.txt")
         return
 
-    # ── coba dirb dulu ────────────────────────────────────────────
-    if tool_available(TOOLS["dirb"]):
-        exec_cmd(
-            [
-                TOOLS["dirb"], url, wordlist,
-                "-o", result_file,
-                "-r",           # tidak rekursif (cepat)
-                "-S",           # silent (tanpa progress)
-                "-a", DEFAULT_USER_AGENT,
-                "-t",           # add trailing slash
-            ],
-            timeout=t,
-        )
-        info("dirb selesai")
-        _extract_found(result_file, out)
-        return
-
-    # ── fallback: ffuf ────────────────────────────────────────────
+    # ── Gunakan ffuf sebagai alat utama ───────────────────────────
     if tool_available(TOOLS["ffuf"]):
-        ffuf_out = os.path.join(out, "ffuf_results.json")
-        exec_cmd(
+        info("menjalankan ffuf directory brute-force...")
+        code, stdout, stderr = exec_cmd(
             [
                 TOOLS["ffuf"],
                 "-u", f"{url}/FUZZ",
@@ -63,20 +47,48 @@ def run(target: str, target_dir: str):
             timeout=t,
         )
         info("ffuf selesai")
+        _parse_ffuf_results(ffuf_out, result_file, out)
         return
 
-    warn("dirb dan ffuf tidak ditemukan, dirbrute dilewati")
+    warn("ffuf tidak ditemukan, dirbrute dilewati")
+    warn("install: go install github.com/ffuf/ffuf/v2@latest")
 
 
-def _extract_found(dirb_file: str, out_dir: str):
-    """Ekstrak baris CODE:200/301/302/403 dari output dirb."""
-    if not os.path.exists(dirb_file):
+def _parse_ffuf_results(json_file: str, txt_file: str, out_dir: str):
+    """Ekstrak hasil dari ffuf_results.json dan tulis ke dirb_results.txt dan found_paths.txt"""
+    if not os.path.exists(json_file):
+        warn("file hasil ffuf tidak ditemukan")
         return
-    found = []
-    with open(dirb_file) as f:
-        for line in f:
-            if "CODE:2" in line or "CODE:3" in line or "CODE:403" in line:
-                found.append(line.strip())
+
+    try:
+        with open(json_file) as f:
+            data = json.load(f)
+    except Exception as e:
+        warn(f"gagal membaca JSON hasil ffuf: {e}")
+        return
+
+    results = data.get("results", [])
+    formatted_lines = []
+
+    for r in results:
+        # ambil url, status, length, redirect
+        status = r.get("status")
+        length = r.get("length")
+        url = r.get("url")
+        redirect = r.get("redirectlocation", "")
+        
+        line = f"[{status}] {url} (size: {length})"
+        if redirect:
+            line += f" -> {redirect}"
+        
+        formatted_lines.append(line)
+
+    # Tulis ke dirb_results.txt agar dibaca oleh report.py (menjaga kompatibilitas)
+    with open(txt_file, "w") as f:
+        f.write("\n".join(formatted_lines) + "\n")
+
+    # Tulis ke found_paths.txt sebagai cadangan ringkas
     with open(os.path.join(out_dir, "found_paths.txt"), "w") as f:
-        f.write("\n".join(found))
-    info(f"path ditemukan: {len(found)}")
+        f.write("\n".join(formatted_lines) + "\n")
+
+    info(f"path ditemukan: {len(formatted_lines)}")

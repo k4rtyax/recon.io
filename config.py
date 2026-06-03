@@ -44,7 +44,6 @@ TOOLS = {
     "gau":          os.environ.get("RECON_TOOL_GAU",         "gau"),
     "waybackurls":  os.environ.get("RECON_TOOL_WAYBACKURLS", "waybackurls"),
     "nikto":        os.environ.get("RECON_TOOL_NIKTO",       "nikto"),
-    "dirb":         os.environ.get("RECON_TOOL_DIRB",        "dirb"),
     "ffuf":         os.environ.get("RECON_TOOL_FFUF",        "ffuf"),
     "naabu":        os.environ.get("RECON_TOOL_NAABU",       "naabu"),
     "linkfinder":   os.environ.get("RECON_TOOL_LINKFINDER",  ""),
