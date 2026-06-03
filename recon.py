@@ -3,11 +3,12 @@
 recon.io — universal web recon framework
 -----------------------------------------
 Penggunaan:
-  python recon.py -t example.com
+  python recon.py -d example.com
+  python recon.py -s api.example.com
   python recon.py -f targets.txt
-  python recon.py -t example.com --fase subdomain,dns,ports
-  python recon.py -t example.com -o ~/hasil
-  python recon.py -t example.com --no-resume
+  python recon.py -d example.com --fase subdomain,dns,ports
+  python recon.py -d example.com -o ~/hasil
+  python recon.py -d example.com --no-resume
 """
 
 import sys
@@ -38,9 +39,14 @@ def parse_args():
     # ── target ───────────────────────────────────────────────────
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument(
-        "-t", "--target",
+        "-d", "--domain",
         metavar="DOMAIN",
-        help="satu target domain (contoh: example.com)",
+        help="target root domain (contoh: example.com), menjalankan semua fase",
+    )
+    group.add_argument(
+        "-s", "--subdomain",
+        metavar="SUBDOMAIN",
+        help="target spesifik subdomain (contoh: api.example.com), otomatis melewati fase pencarian subdomain",
     )
     group.add_argument(
         "-f", "--file",
@@ -88,10 +94,11 @@ def parse_args():
 def _help_epilog() -> str:
     return f"""
 contoh penggunaan:
-  python recon.py -t opera.com
+  python recon.py -d opera.com
+  python recon.py -s api.opera.com
   python recon.py -f targets.txt -o ~/hasil
-  python recon.py -t example.com --fase subdomain,dns,ports
-  python recon.py -t example.com --no-resume
+  python recon.py -d example.com --fase subdomain,dns,ports
+  python recon.py -d example.com --no-resume
 
 fase yang tersedia:
   {chr(10)+'  '.join(f'{i+1:2}. {f}' for i, f in enumerate(FASE_LIST))}
@@ -112,6 +119,15 @@ def _load_targets_from_file(path: str) -> list[str]:
         err(f"tidak ada target valid di: {path}")
         sys.exit(1)
     return targets
+
+
+def _clean_target(raw_target: str) -> str:
+    # Hapus whitespace, http(s)://, dan wildcard prefix (*.)
+    t = raw_target.strip()
+    t = t.replace("http://", "").replace("https://", "")
+    if t.startswith("*."):
+        t = t[2:]
+    return t.rstrip("/")
 
 
 def main():
@@ -139,10 +155,16 @@ def main():
         fases = FASE_LIST
 
     # ── tentukan target(s) ───────────────────────────────────────
-    if args.target:
-        targets = [args.target.strip()]
+    if args.domain:
+        targets = [_clean_target(args.domain)]
+    elif args.subdomain:
+        targets = [_clean_target(args.subdomain)]
+        if "subdomain" in fases:
+            fases.remove("subdomain")
+            info("Target adalah subdomain spesifik, fase 'subdomain' dilewati.")
     else:
-        targets = _load_targets_from_file(args.file)
+        raw_targets = _load_targets_from_file(args.file)
+        targets = [_clean_target(t) for t in raw_targets]
 
     # ── buat output dir ──────────────────────────────────────────
     os.makedirs(args.output, exist_ok=True)
