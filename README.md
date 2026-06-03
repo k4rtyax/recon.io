@@ -44,7 +44,7 @@ python recon.py -t example.com --no-resume
 | --- | ----------- | ------------------------------------ |
 | 1   | subdomain   | subfinder, assetfinder, amass, httpx |
 | 2   | dns         | whois, dig                           |
-| 3   | ports       | nmap                                 |
+| 3   | ports       | naabu, nmap                          |
 | 4   | fingerprint | whatweb, wafw00f, curl               |
 | 5   | urls        | gau, waybackurls                     |
 | 6   | js          | curl + regex (linkfinder jika ada)   |
@@ -152,6 +152,7 @@ Lihat `.env.example` untuk daftar lengkap variabel yang tersedia.
 sudo apt install nmap curl whois dnsutils nikto wafw00f whatweb dirb
 
 # go
+go install github.com/projectdiscovery/naabu/v2/cmd/naabu@latest
 go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
 go install github.com/projectdiscovery/httpx/cmd/httpx@latest
 go install github.com/tomnomnom/assetfinder@latest
@@ -176,6 +177,7 @@ Framework ini berdiri di atas berbagai *open-source tools* hebat buatan komunita
 *   **Amass**: [OWASP](https://github.com/owasp-amass/amass)
 *   **Httpx**: [ProjectDiscovery](https://github.com/projectdiscovery/httpx)
 *   **Nmap**: [Nmap.org](https://nmap.org/)
+*   **Naabu**: [ProjectDiscovery](https://github.com/projectdiscovery/naabu)
 *   **WhatWeb**: [UrbanAdventurer](https://github.com/urbanadventurer/WhatWeb)
 *   **Wafw00f**: [EnableSecurity](https://github.com/EnableSecurity/wafw00f)
 *   **Gau**: [lc](https://github.com/lc/gau)
