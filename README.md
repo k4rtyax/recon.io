@@ -48,7 +48,7 @@ python recon.py -t example.com --no-resume
 | 4   | fingerprint | whatweb, wafw00f, curl               |
 | 5   | urls        | gau, waybackurls                     |
 | 6   | js          | curl + regex (linkfinder jika ada)   |
-| 7   | security    | curl, nikto                          |
+| 7   | security    | curl, nuclei                         |
 | 8   | dork        | generator (tidak butuh tools)        |
 | 9   | dirbrute    | ffuf                                 |
 
@@ -123,7 +123,7 @@ Lihat `.env.example` untuk daftar lengkap variabel yang tersedia.
         │   ├── security_analysis.txt
         │   ├── missing_headers.txt
         │   ├── insecure_cookies.txt
-        │   └── nikto.txt
+        │   └── nuclei_results.txt
         ├── dork/
         │   ├── dork_queries.txt
         │   ├── shodan_queries.txt
@@ -182,7 +182,7 @@ Framework ini berdiri di atas berbagai *open-source tools* hebat buatan komunita
 *   **Wafw00f**: [EnableSecurity](https://github.com/EnableSecurity/wafw00f)
 *   **Gau**: [lc](https://github.com/lc/gau)
 *   **Waybackurls**: [TomNomNom](https://github.com/tomnomnom/waybackurls)
-*   **Nikto**: [Sullo](https://github.com/sullo/nikto)
+*   **Nuclei**: [ProjectDiscovery](https://github.com/projectdiscovery/nuclei)
 *   **Ffuf**: [Ffuf](https://github.com/ffuf/ffuf)
 *   **LinkFinder**: [GerbenJavado](https://github.com/GerbenJavado/LinkFinder)
 *   **SecLists (Wordlists)**: [Daniel Miessler](https://github.com/danielmiessler/SecLists)

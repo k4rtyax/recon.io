@@ -43,7 +43,7 @@ TOOLS = {
     "wafw00f":      os.environ.get("RECON_TOOL_WAFW00F",    "wafw00f"),
     "gau":          os.environ.get("RECON_TOOL_GAU",         "gau"),
     "waybackurls":  os.environ.get("RECON_TOOL_WAYBACKURLS", "waybackurls"),
-    "nikto":        os.environ.get("RECON_TOOL_NIKTO",       "nikto"),
+    "nuclei":       os.environ.get("RECON_TOOL_NUCLEI",      "nuclei"),
     "ffuf":         os.environ.get("RECON_TOOL_FFUF",        "ffuf"),
     "naabu":        os.environ.get("RECON_TOOL_NAABU",       "naabu"),
     "linkfinder":   os.environ.get("RECON_TOOL_LINKFINDER",  ""),

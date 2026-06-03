@@ -1,6 +1,6 @@
 """
-Fase 7: Security Headers & Nikto
-Cek header keamanan yang hilang, cookie flags, nikto scan.
+Fase 7: Security Headers & Vulnerability Scanning
+Cek header keamanan yang hilang, cookie flags, nuclei vulnerability scan.
 """
 
 import os
@@ -59,14 +59,19 @@ def run(target: str, target_dir: str):
     write_lines(os.path.join(out, "insecure_cookies.txt"), insecure)
     info(f"insecure cookies: {len(insecure)}")
 
-    # ── nikto ─────────────────────────────────────────────────────
-    if tool_available(TOOLS["nikto"]):
-        nikto_out = os.path.join(out, "nikto.txt")
+    # ── nuclei ────────────────────────────────────────────────────
+    if tool_available(TOOLS["nuclei"]):
+        nuclei_out = os.path.join(out, "nuclei_results.txt")
         exec_cmd(
-            [TOOLS["nikto"], "-h", url, "-o", nikto_out, "-Format", "txt",
-             "-timeout", "10", "-maxtime", "300s"],
+            [
+                TOOLS["nuclei"], "-u", url,
+                "-severity", "critical,high,medium",
+                "-o", nuclei_out,
+                "-silent"
+            ],
             timeout=t,
         )
-        info("nikto selesai")
+        info("nuclei selesai")
     else:
-        warn("nikto tidak ditemukan, dilewati")
+        warn("nuclei tidak ditemukan, dilewati")
+        warn("install: go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest")

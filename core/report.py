@@ -183,11 +183,18 @@ TEMUAN PRIORITAS
         d = self.target_dir
         missing  = self._read_head(f"{d}/security/missing_headers.txt")
         cookies  = self._read_head(f"{d}/security/insecure_cookies.txt")
+        nuclei_file = f"{d}/security/nuclei_results.txt"
+        
         md = (
             f"**Missing security headers**\n\n```\n{missing}\n```\n\n"
             f"**Insecure cookies**\n\n```\n{cookies}\n```\n"
         )
-        self.add_section("Fase 7: Security Headers", md)
+        
+        if os.path.exists(nuclei_file):
+            vulns = self._read_head(nuclei_file, 50)
+            md += f"\n**Vulnerabilities (Nuclei)**\n\n```\n{vulns}\n```\n"
+            
+        self.add_section("Fase 7: Security Headers & Vuln Scan", md)
 
     def fase_dork(self):
         d = self.target_dir
