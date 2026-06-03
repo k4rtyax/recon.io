@@ -9,7 +9,6 @@ Universal web recon framework untuk bug bounty hunting.
 
 ![recon.io banner](banner.png)
 
-> [!IMPORTANT]
 > **Kebutuhan Python**: Proyek ini memerlukan **Python 3.10+** karena menggunakan fitur *union type hinting* modern (`type | None`).
 
 
