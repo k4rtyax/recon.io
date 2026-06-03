@@ -53,7 +53,7 @@ def parse_args():
         "-o", "--output",
         metavar="DIR",
         default=DEFAULT_OUTPUT_DIR,
-        help="folder output (default: ~/recon-output)",
+        help="folder output (default: ./results)",
     )
     parser.add_argument(
         "--fase",

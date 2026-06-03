@@ -28,7 +28,7 @@ python recon.py -t example.com --no-resume
 | ------------- | ------------------------------------------ |
 | `-t DOMAIN`   | satu target domain                         |
 | `-f FILE`     | file berisi daftar target (satu per baris) |
-| `-o DIR`      | folder output (default: ~/recon-output)    |
+| `-o DIR`      | folder output (default: ./results)         |
 | `--fase FASE` | pilih fase tertentu, pisah koma            |
 | `--no-resume` | mulai dari awal, abaikan checkpoint        |
 | `--list-fase` | tampilkan daftar fase                      |
@@ -65,7 +65,7 @@ Lihat `.env.example` untuk daftar lengkap variabel yang tersedia.
 
 | Variable                | Default          | Keterangan                |
 | ----------------------- | ---------------- | ------------------------- |
-| `RECON_OUTPUT_DIR`      | `~/recon-output` | folder output             |
+| `RECON_OUTPUT_DIR`      | `./results`      | folder output             |
 | `RECON_TIMEOUT`         | `300`            | timeout global (detik)    |
 | `RECON_TIMEOUT_<FASE>`  | bervariasi       | timeout per fase          |
 | `RECON_THREADS`         | `10`             | jumlah thread             |
@@ -77,21 +77,23 @@ Lihat `.env.example` untuk daftar lengkap variabel yang tersedia.
 ## Struktur output
 
 ```
-~/recon-output/
+./results/
 └── example.com/
-    └── 20250101_120000/
+    └── recon_03_06_2026/
         ├── .checkpoint.json     <- progress resume
         ├── subdomain/
         │   ├── subfinder.txt
         │   ├── alterx_permutations.txt
         │   ├── resolved_permutations.txt
         │   ├── all_subdomains.txt
-        │   └── alive_subdomains.txt
+        │   ├── alive_subdomains.txt
+        │   └── alive_subdomains_info.txt
         ├── dns/
         │   ├── whois.txt
         │   ├── dns_records.txt
         │   └── zone_transfer.txt
         ├── ports/
+        │   ├── naabu.txt
         │   ├── nmap_top1000.txt
         │   ├── nmap_http.txt
         │   └── open_ports.txt
