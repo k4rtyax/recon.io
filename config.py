@@ -35,6 +35,8 @@ TIMEOUTS = {
 # Override via env: RECON_TOOL_NMAP=/usr/local/bin/nmap dll.
 TOOLS = {
     "subfinder":    os.environ.get("RECON_TOOL_SUBFINDER",   "subfinder"),
+    "alterx":       os.environ.get("RECON_TOOL_ALTERX",      "alterx"),
+    "dnsx":         os.environ.get("RECON_TOOL_DNSX",        "dnsx"),
     "httpx":        os.environ.get("RECON_TOOL_HTTPX",       "httpx"),
     "nmap":         os.environ.get("RECON_TOOL_NMAP",        "nmap"),
     "wafw00f":      os.environ.get("RECON_TOOL_WAFW00F",    "wafw00f"),

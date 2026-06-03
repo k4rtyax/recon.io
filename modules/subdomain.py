@@ -1,10 +1,11 @@
 """
 Fase 1: Subdomain Enumeration
-Menggunakan subfinder untuk pencarian pasif, diikuti httpx untuk probe keaktifan host.
+Menggunakan subfinder untuk pencarian pasif, diikuti AlterX untuk pembuatan tebakan permutasi,
+dnsx untuk resolusi DNS, dan httpx untuk probe keaktifan host.
 """
 
 import os
-from core.utils import info, warn, run as exec_cmd, run_shell as exec_shell, dedupe_file, tool_available
+from core.utils import info, warn, run as exec_cmd, tool_available, read_lines, write_lines
 from config import TIMEOUTS, TOOLS
 
 
@@ -14,9 +15,9 @@ def run(target: str, target_dir: str):
     alive_file = os.path.join(out, "alive_subdomains.txt")
     t = TIMEOUTS["subdomain"]
 
-    # ── subfinder ────────────────────────────────────────────────
+    # ── 1. subfinder (Pencarian Pasif) ────────────────────────────
+    sf_out = os.path.join(out, "subfinder.txt")
     if tool_available(TOOLS["subfinder"]):
-        sf_out = os.path.join(out, "subfinder.txt")
         exec_cmd([TOOLS["subfinder"], "-d", target, "-silent", "-o", sf_out], timeout=t)
         info("subfinder selesai")
     else:
@@ -24,17 +25,57 @@ def run(target: str, target_dir: str):
         warn("install: go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest")
         return
 
-    # ── ambil & deduplikat hasil ───────────────────────────────────
-    lines = []
+    # ── 2. alterx & dnsx (Pembuatan Permutasi & Resolusi DNS) ──────
+    alterx_available = tool_available(TOOLS["alterx"])
+    dnsx_available   = tool_available(TOOLS["dnsx"])
+
+    resolved_file = os.path.join(out, "resolved_permutations.txt")
+    
+    if alterx_available and dnsx_available:
+        info("menjalankan AlterX untuk tebakan permutasi subdomain...")
+        alt_out = os.path.join(out, "alterx_permutations.txt")
+        exec_cmd(
+            [
+                TOOLS["alterx"], "-l", sf_out,
+                "-silent", "-o", alt_out
+            ],
+            timeout=t
+        )
+        info("AlterX selesai")
+
+        info("menjalankan dnsx untuk resolusi DNS aktif...")
+        exec_cmd(
+            [
+                TOOLS["dnsx"], "-l", alt_out,
+                "-silent", "-o", resolved_file
+            ],
+            timeout=t
+        )
+        info("dnsx selesai")
+    else:
+        if not alterx_available:
+            warn("alterx tidak ditemukan, melewati tahap permutasi")
+            warn("install: go install github.com/projectdiscovery/alterx/cmd/alterx@latest")
+        if not dnsx_available:
+            warn("dnsx tidak ditemukan, melewati tahap resolusi DNS aktif")
+            warn("install: go install github.com/projectdiscovery/dnsx/cmd/dnsx@latest")
+
+    # ── 3. Penggabungan & Deduplikasi ──────────────────────────────
+    subdomains = []
+    
+    # Ambil hasil pasif subfinder
     if os.path.exists(sf_out):
-        with open(sf_out) as f:
-            lines = [l.strip() for l in f if l.strip()]
+        subdomains += read_lines(sf_out)
+        
+    # Ambil hasil aktif permutasi (jika ada)
+    if os.path.exists(resolved_file):
+        subdomains += read_lines(resolved_file)
 
-    with open(all_file, "w") as f:
-        for line in sorted(set(lines)):
-            f.write(line + "\n")
+    subdomains = sorted(set(subdomains))
+    write_lines(all_file, subdomains)
+    info(f"total subdomain ditemukan (pasif + permutasi): {len(subdomains)}")
 
-    # ── httpx: cek yang aktif ─────────────────────────────────────
+    # ── 4. httpx (Cek Keaktifan Web) ───────────────────────────────
     if tool_available(TOOLS["httpx"]) and os.path.exists(all_file):
         exec_cmd(
             [

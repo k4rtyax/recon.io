@@ -35,7 +35,7 @@ python recon.py -t example.com --no-resume
 
 | #   | Fase        | Tools                                |
 | --- | ----------- | ------------------------------------ |
-| 1   | subdomain   | subfinder, httpx                     |
+| 1   | subdomain   | subfinder, alterx, dnsx, httpx       |
 | 2   | dns         | whois, dig                           |
 | 3   | ports       | naabu, nmap                          |
 | 4   | fingerprint | httpx, wafw00f, curl                 |
@@ -144,6 +144,8 @@ sudo apt install nmap curl whois dnsutils wafw00f
 # go
 go install github.com/projectdiscovery/naabu/v2/cmd/naabu@latest
 go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
+go install github.com/projectdiscovery/alterx/cmd/alterx@latest
+go install github.com/projectdiscovery/dnsx/cmd/dnsx@latest
 go install github.com/projectdiscovery/httpx/cmd/httpx@latest
 go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
 go install github.com/lc/gau/v2/cmd/gau@latest
@@ -162,6 +164,8 @@ Tools yang tidak ada akan dilewati otomatis, recon tetap berjalan.
 Framework ini berdiri di atas berbagai *open-source tools* hebat buatan komunitas *security research*. Berikut daftar tools yang dipanggil oleh recon.io beserta link referensinya:
 
 *   **Subfinder**: [ProjectDiscovery](https://github.com/projectdiscovery/subfinder)
+*   **AlterX**: [ProjectDiscovery](https://github.com/projectdiscovery/alterx)
+*   **Dnsx**: [ProjectDiscovery](https://github.com/projectdiscovery/dnsx)
 *   **Httpx**: [ProjectDiscovery](https://github.com/projectdiscovery/httpx)
 *   **Nmap**: [Nmap.org](https://nmap.org/)
 *   **Naabu**: [ProjectDiscovery](https://github.com/projectdiscovery/naabu)
