@@ -27,7 +27,6 @@ TIMEOUTS = {
     "urls":        int(os.environ.get("RECON_TIMEOUT_URLS", "120")),
     "js":          int(os.environ.get("RECON_TIMEOUT_JS", "300")),
     "security":    int(os.environ.get("RECON_TIMEOUT_SECURITY", "360")),
-    "dork":        int(os.environ.get("RECON_TIMEOUT_DORK", "30")),
     "dirbrute":    int(os.environ.get("RECON_TIMEOUT_DIRBRUTE", "600")),
 }
 
@@ -56,7 +55,6 @@ FASE_LIST = [
     "urls",
     "js",
     "security",
-    "dork",
     "dirbrute",
 ]
 

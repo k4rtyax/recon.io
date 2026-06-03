@@ -196,17 +196,11 @@ TEMUAN PRIORITAS
             
         self.add_section("Fase 7: Security Headers & Vuln Scan", md)
 
-    def fase_dork(self):
-        d = self.target_dir
-        dorks = self._read_head(f"{d}/dork/dork_queries.txt")
-        md = f"```\n{dorks}\n```\n"
-        self.add_section("Fase 8: Google Dork", md)
-
     def fase_dirbrute(self):
         d = self.target_dir
         found = self._read_head(f"{d}/dirbrute/dirb_results.txt")
         md = f"```\n{found}\n```\n"
-        self.add_section("Fase 9: Directory Bruteforce", md)
+        self.add_section("Fase 8: Directory Bruteforce", md)
 
     # ── tulis ke disk ─────────────────────────────────────────────
 

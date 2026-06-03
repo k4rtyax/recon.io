@@ -42,8 +42,7 @@ python recon.py -t example.com --no-resume
 | 5   | urls        | katana                               |
 | 6   | js          | curl + regex (linkfinder jika ada)   |
 | 7   | security    | curl, nuclei                         |
-| 8   | dork        | generator (tidak butuh tools)        |
-| 9   | dirbrute    | ffuf                                 |
+| 8   | dirbrute    | ffuf                                 |
 
 ## Konfigurasi
 
@@ -116,10 +115,6 @@ Lihat `.env.example` untuk daftar lengkap variabel yang tersedia.
         │   ├── missing_headers.txt
         │   ├── insecure_cookies.txt
         │   └── nuclei_results.txt
-        ├── dork/
-        │   ├── dork_queries.txt
-        │   ├── shodan_queries.txt
-        │   └── censys_queries.txt
         ├── dirbrute/
         │   ├── dirb_results.txt
         │   └── found_paths.txt

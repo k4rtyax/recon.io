@@ -19,7 +19,6 @@ import modules.fingerprint as mod_fingerprint
 import modules.urls       as mod_urls
 import modules.js         as mod_js
 import modules.security   as mod_security
-import modules.dork       as mod_dork
 import modules.dirbrute   as mod_dirbrute
 
 
@@ -31,7 +30,6 @@ FASE_MAP = {
     "urls":        mod_urls,
     "js":          mod_js,
     "security":    mod_security,
-    "dork":        mod_dork,
     "dirbrute":    mod_dirbrute,
 }
 
@@ -39,7 +37,7 @@ FASE_MAP = {
 def _setup_dirs(target_dir: str):
     subdirs = [
         "subdomain", "dns", "ports", "fingerprint",
-        "urls", "js", "security", "dork", "dirbrute", "report",
+        "urls", "js", "security", "dirbrute", "report",
     ]
     for d in subdirs:
         os.makedirs(os.path.join(target_dir, d), exist_ok=True)
