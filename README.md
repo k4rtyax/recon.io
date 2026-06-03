@@ -82,6 +82,8 @@ Lihat `.env.example` untuk daftar lengkap variabel yang tersedia.
         ├── .checkpoint.json     <- progress resume
         ├── subdomain/
         │   ├── subfinder.txt
+        │   ├── alterx_permutations.txt
+        │   ├── resolved_permutations.txt
         │   ├── all_subdomains.txt
         │   └── alive_subdomains.txt
         ├── dns/
@@ -93,7 +95,7 @@ Lihat `.env.example` untuk daftar lengkap variabel yang tersedia.
         │   ├── nmap_http.txt
         │   └── open_ports.txt
         ├── fingerprint/
-        │   ├── whatweb.txt
+        │   ├── httpx_tech.json
         │   ├── waf.txt
         │   ├── headers.txt
         │   └── tech_stack.txt
