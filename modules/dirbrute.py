@@ -5,7 +5,7 @@ Menggunakan ffuf (modern Go-based fuzzer) sebagai default utama.
 
 import os
 import json
-from core.utils import info, warn, run as exec_cmd, tool_available
+from core.utils import info, warn, run as exec_cmd, tool_available, get_working_url
 from config import DEFAULT_USER_AGENT, TIMEOUTS, TOOLS, WORDLIST_PATHS
 
 
@@ -18,7 +18,7 @@ def _find_wordlist() -> str | None:
 
 def run(target: str, target_dir: str):
     out       = os.path.join(target_dir, "dirbrute")
-    url       = f"https://{target}"
+    url       = get_working_url(target)
     wordlist  = _find_wordlist()
     result_file = os.path.join(out, "ffuf_results.txt")
     ffuf_out  = os.path.join(out, "ffuf_results.json")

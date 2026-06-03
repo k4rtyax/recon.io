@@ -4,8 +4,8 @@ Menggunakan whois dan dig.
 """
 
 import os
-from core.utils import info, warn, run as exec_cmd, tool_available
-from config import TIMEOUTS
+from core.utils import info, warn, run as exec_cmd, tool_available, read_lines, write_lines
+from config import TIMEOUTS, TOOLS
 
 
 def run(target: str, target_dir: str):
@@ -27,21 +27,48 @@ def run(target: str, target_dir: str):
     else:
         warn("whois tidak ditemukan, dilewati")
 
-    # ── dig records ──────────────────────────────────────────────
+    # ── dig records / dnsx ────────────────────────────────────────
     records_file = os.path.join(out, "dns_records.txt")
-    record_types = ["A", "AAAA", "MX", "NS", "TXT", "CNAME", "SOA"]
-    all_records = []
+    alive_subdomains_file = os.path.join(target_dir, "subdomain", "alive_subdomains.txt")
+    
+    clean_hosts = []
+    if os.path.exists(alive_subdomains_file):
+        for line in read_lines(alive_subdomains_file):
+            host = line.replace("http://", "").replace("https://", "").split("/")[0]
+            if host:
+                clean_hosts.append(host)
+                
+    if clean_hosts and tool_available(TOOLS["dnsx"]):
+        info("menjalankan dnsx untuk resolusi DNS massal subdomain...")
+        temp_dns_file = os.path.join(out, "temp_dns_targets.txt")
+        write_lines(temp_dns_file, clean_hosts)
+        
+        exec_cmd(
+            [
+                TOOLS["dnsx"], "-l", temp_dns_file,
+                "-recon", "-resp", "-nc", "-silent",
+                "-o", records_file
+            ],
+            timeout=t
+        )
+        
+        if os.path.exists(temp_dns_file):
+            os.remove(temp_dns_file)
+        info("dnsx records selesai")
+    else:
+        record_types = ["A", "AAAA", "MX", "NS", "TXT", "CNAME", "SOA"]
+        all_records = []
 
-    for rtype in record_types:
-        code, stdout, _ = exec_cmd(["dig", "+short", target, rtype], timeout=t)
-        if stdout.strip():
-            all_records.append(f"--- {rtype} ---")
-            all_records.append(stdout.strip())
+        for rtype in record_types:
+            code, stdout, _ = exec_cmd(["dig", "+short", target, rtype], timeout=t)
+            if stdout.strip():
+                all_records.append(f"--- {rtype} ---")
+                all_records.append(stdout.strip())
 
-    with open(records_file, "w") as f:
-        f.write("\n".join(all_records))
+        with open(records_file, "w") as f:
+            f.write("\n".join(all_records))
 
-    info("dig records selesai")
+        info("dig records selesai")
 
     # ── zone transfer attempt ─────────────────────────────────────
     # ambil nameserver dulu

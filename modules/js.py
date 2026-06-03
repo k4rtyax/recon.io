@@ -6,7 +6,7 @@ Ambil file JS dari URL list, ekstrak endpoint dan potential secrets.
 import os
 import re
 from urllib.parse import urlparse
-from core.utils import info, warn, run as exec_cmd, read_lines, write_lines, tool_available
+from core.utils import info, warn, run as exec_cmd, read_lines, write_lines, tool_available, get_working_url
 from config import SECRET_PATTERNS, DEFAULT_USER_AGENT, TIMEOUTS, TOOLS
 
 
@@ -16,8 +16,37 @@ def run(target: str, target_dir: str):
     all_urls = read_lines(os.path.join(urls_dir, "all_urls.txt"))
     t = TIMEOUTS["js"]
 
-    # ── ambil semua URL .js ───────────────────────────────────────
-    js_urls = [u for u in all_urls if urlparse(u).path.endswith(".js")]
+    # ── ambil semua URL .js (filter in-scope & resolusi URL relatif) ──
+    base_url = get_working_url(target)
+    js_urls = []
+    target_domain = target.lower()
+
+    for u in all_urls:
+        u = u.strip()
+        if not u:
+            continue
+        try:
+            parsed = urlparse(u)
+            # Jika relatif, gabungkan dengan base_url
+            if not parsed.scheme:
+                if u.startswith("/"):
+                    js_url = f"{base_url}{u}"
+                else:
+                    js_url = f"{base_url}/{u}"
+                parsed = urlparse(js_url)
+            else:
+                js_url = u
+                
+            if parsed.path.endswith(".js"):
+                hostname = parsed.netloc.lower()
+                if ":" in hostname:
+                    hostname = hostname.split(":")[0]
+                if hostname == target_domain or hostname.endswith("." + target_domain):
+                    js_urls.append(js_url)
+        except Exception:
+            pass
+
+    js_urls = sorted(set(js_urls))
     js_urls_file = os.path.join(out, "js_files.txt")
     write_lines(js_urls_file, js_urls)
     info(f"JS files ditemukan: {len(js_urls)}")
@@ -36,7 +65,7 @@ def run(target: str, target_dir: str):
     # ── download & analisis tiap file JS ─────────────────────────
     for js_url in js_urls[:50]:  # batasi 50 file
         code, content, _ = exec_cmd(
-            ["curl", "-sL", "-A", DEFAULT_USER_AGENT,
+            ["curl", "-sfL", "-A", DEFAULT_USER_AGENT,
              "--max-time", "15", js_url],
             timeout=t,
         )

@@ -36,7 +36,7 @@ def parse_args():
     )
 
     # ── target ───────────────────────────────────────────────────
-    group = parser.add_mutually_exclusive_group(required=True)
+    group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument(
         "-d", "--domain",
         metavar="DOMAIN",
@@ -71,6 +71,11 @@ def parse_args():
         ),
     )
     parser.add_argument(
+        "-A",
+        action="store_true",
+        help="jalankan fase pemetaan jaringan dasar saja (subdomain, dns, ports)",
+    )
+    parser.add_argument(
         "--list-fase",
         action="store_true",
         help="tampilkan daftar fase yang tersedia lalu keluar",
@@ -78,10 +83,13 @@ def parse_args():
     parser.add_argument(
         "--version",
         action="version",
-        version="recon.io 1.0.0",
+        version="recon.io 1.5",
     )
 
-    return parser.parse_args()
+    args = parser.parse_args()
+    if not args.list_fase and not (args.domain or args.subdomain or args.file):
+        parser.error("one of the arguments -d/--domain -s/--subdomain -f/--file is required")
+    return args
 
 
 def _help_epilog() -> str:
@@ -90,6 +98,7 @@ contoh penggunaan:
   python recon.py -d opera.com
   python recon.py -s api.opera.com
   python recon.py -f targets.txt -o ~/hasil
+  python recon.py -d example.com -A
   python recon.py -d example.com --fase subdomain,dns,ports
 
 fase yang tersedia:
@@ -143,6 +152,8 @@ def main():
             err(f"fase tidak dikenal: {', '.join(invalid)}")
             err(f"gunakan --list-fase untuk melihat daftar fase")
             sys.exit(1)
+    elif args.A:
+        fases = ["subdomain", "dns", "ports"]
     else:
         fases = FASE_LIST
 

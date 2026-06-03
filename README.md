@@ -16,6 +16,7 @@ Universal web recon framework untuk bug bounty hunting.
 
 ```bash
 python recon.py -d example.com
+python recon.py -d example.com -A
 python recon.py -f targets.txt
 python recon.py -d example.com --fase subdomain,dns,ports
 python recon.py -d example.com -o ~/hasil
@@ -27,8 +28,9 @@ python recon.py -d example.com -o ~/hasil
 | ------------- | ------------------------------------------ |
 | `-d DOMAIN`   | satu target domain                         |
 | `-s SUBDOMAIN`| target spesifik subdomain (otomatis melewati fase subdomain) |
-| `-f FILE`     | file berisi daftar target (satu per baris) |
+| `-f FILE`     | file berisi daftar target (satu per baris cth subdomain.txt) |
 | `-o DIR`      | folder output (default: ./results)         |
+| `-A`          | jalankan fase pemetaan jaringan dasar saja (subdomain, dns, ports) |
 | `--fase FASE` | pilih fase tertentu, pisah koma            |
 | `--list-fase` | tampilkan daftar fase                      |
 
@@ -71,7 +73,6 @@ Lihat `.env.example` untuk daftar lengkap variabel yang tersedia.
 | `RECON_USER_AGENT`      | Chrome UA        | user agent string         |
 | `RECON_TOOL_<NAME>`     | nama tool        | path ke binary tool       |
 | `RECON_WORDLIST`        | auto-detect      | path ke wordlist dirbrute |
-| `RECON_TOOL_LINKFINDER` | _(kosong)_       | path ke linkfinder.py     |
 
 ## Struktur output
 
@@ -136,34 +137,21 @@ Lihat `.env.example` untuk daftar lengkap variabel yang tersedia.
 - **Configurable** — semua setting bisa di-override via environment variable
 - **Universal** — tidak terikat ke target atau sistem tertentu
 
-## Instalasi tools (opsional)
+## Instalasi tools
+
+Untuk menginstal semua dependensi sistem, Python, Go, beserta tools pendukungnya secara otomatis, jalankan skrip instalasi berikut:
 
 ```bash
-# apt
-sudo apt install nmap curl whois dnsutils
+# 1. Berikan izin eksekusi pada skrip install.sh
+chmod +x install.sh
 
-# pip (untuk wafw00f)
-pip install wafw00f
-# atau via apt jika menggunakan Kali Linux / Debian:
-# sudo apt install wafw00f
+# 2. Jalankan skrip instalasi
+./install.sh
 
-# go
-go install github.com/projectdiscovery/naabu/v2/cmd/naabu@latest
-go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
-go install github.com/projectdiscovery/alterx/cmd/alterx@latest
-go install github.com/projectdiscovery/dnsx/cmd/dnsx@latest
-go install github.com/projectdiscovery/httpx/cmd/httpx@latest
-go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
-go install github.com/projectdiscovery/katana/cmd/katana@latest
-go install github.com/ffuf/ffuf/v2@latest
-
-# linkfinder (opsional)
-git clone https://github.com/GerbenJavado/LinkFinder.git /opt/linkfinder
-pip3 install -r /opt/linkfinder/requirements.txt
-export RECON_TOOL_LINKFINDER=/opt/linkfinder/linkfinder.py
+# 3. Muat ulang konfigurasi shell Anda
+source ~/.bashrc  # atau source ~/.zshrc
 ```
 
-Tools yang tidak ada akan dilewati otomatis, recon tetap berjalan.
 
 ## Referensi Tools
 
@@ -179,7 +167,6 @@ Framework ini berdiri di atas berbagai *open-source tools* hebat buatan komunita
 *   **Katana**: [ProjectDiscovery](https://github.com/projectdiscovery/katana)
 *   **Nuclei**: [ProjectDiscovery](https://github.com/projectdiscovery/nuclei)
 *   **Ffuf**: [Ffuf](https://github.com/ffuf/ffuf)
-*   **LinkFinder**: [GerbenJavado](https://github.com/GerbenJavado/LinkFinder)
 *   **SecLists (Wordlists)**: [Daniel Miessler](https://github.com/danielmiessler/SecLists)
 
 Apresiasi besar untuk para kreator alat-alat di atas! 👏
@@ -187,7 +174,3 @@ Apresiasi besar untuk para kreator alat-alat di atas! 👏
 ## Referensi Writeups
 
 Untuk mempelajari teknik dan studi kasus pengintaian (*recon*) tingkat lanjut, silakan baca dokumentasi [WRITEUPS_REF.md](WRITEUPS_REF.md).
-
-## License
-
-MIT

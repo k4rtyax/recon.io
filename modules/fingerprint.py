@@ -5,13 +5,13 @@ httpx dengan -tech-detect untuk tech stack, wafw00f untuk WAF detection.
 
 import os
 import json
-from core.utils import info, warn, run as exec_cmd, tool_available
+from core.utils import info, warn, run as exec_cmd, tool_available, get_working_url
 from config import DEFAULT_USER_AGENT, TIMEOUTS, TOOLS
 
 
 def run(target: str, target_dir: str):
     out = os.path.join(target_dir, "fingerprint")
-    url = f"https://{target}"
+    url = get_working_url(target)
     t = TIMEOUTS["fingerprint"]
 
     # ── httpx (technology detect) ─────────────────────────────────
@@ -44,7 +44,7 @@ def run(target: str, target_dir: str):
     # ── headers via curl ─────────────────────────────────────────
     hdr_out = os.path.join(out, "headers.txt")
     code, stdout, _ = exec_cmd(
-        ["curl", "-sI", "-A", DEFAULT_USER_AGENT,
+        ["curl", "-sI", "-L", "-A", DEFAULT_USER_AGENT,
          "--max-time", "15", url],
         timeout=t,
     )

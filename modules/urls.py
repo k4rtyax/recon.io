@@ -5,7 +5,7 @@ Menggunakan Katana untuk perayapan aktif (crawling) dan pemetaan endpoint API/JS
 
 import os
 from urllib.parse import urlparse
-from core.utils import info, warn, run as exec_cmd, tool_available, read_lines, write_lines
+from core.utils import info, warn, run as exec_cmd, tool_available, read_lines, write_lines, get_working_url
 from config import INTERESTING_PATTERNS, TIMEOUTS, TOOLS
 
 
@@ -17,9 +17,10 @@ def run(target: str, target_dir: str):
     # ── katana ───────────────────────────────────────────────────
     if tool_available(TOOLS["katana"]):
         kat_out = os.path.join(out, "katana.txt")
+        url = get_working_url(target)
         exec_cmd(
             [
-                TOOLS["katana"], "-u", f"https://{target}",
+                TOOLS["katana"], "-u", url,
                 "-silent", "-jc", "-o", kat_out
             ],
             timeout=t,

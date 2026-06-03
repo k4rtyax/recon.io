@@ -43,7 +43,7 @@ def section(title: str):
     print(f"  {DIM}{'─' * width}{RESET}")
 
 
-def banner(version="1.0.0"):
+def banner(version="1.5"):
     art = r"""
 ░▒▓███████▓▒░░▒▓████████▓▒░▒▓██████▓▒░ ░▒▓██████▓▒░░▒▓███████▓▒░       ░▒▓█▓▒░░▒▓██████▓▒░  
 ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░     ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░      ░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░ 
@@ -121,3 +121,14 @@ def count_lines(path: str) -> int:
 def dedupe_file(path: str):
     lines = read_lines(path)
     write_lines(path, sorted(set(lines)))
+
+
+def get_working_url(target: str, timeout: int = 5) -> str:
+    """Cek apakah target mendukung HTTPS, jika gagal gunakan HTTP."""
+    code, stdout, _ = run(
+        ["curl", "-sI", "-L", "--max-time", str(timeout), f"https://{target}"],
+        timeout=timeout + 2,
+    )
+    if code == 0 and stdout.strip():
+        return f"https://{target}"
+    return f"http://{target}"

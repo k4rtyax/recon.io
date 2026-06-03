@@ -4,18 +4,18 @@ Cek header keamanan yang hilang, cookie flags, nuclei vulnerability scan.
 """
 
 import os
-from core.utils import info, warn, run as exec_cmd, write_lines, tool_available
+from core.utils import info, warn, run as exec_cmd, write_lines, tool_available, get_working_url
 from config import REQUIRED_SECURITY_HEADERS, DEFAULT_USER_AGENT, TIMEOUTS, TOOLS
 
 
 def run(target: str, target_dir: str):
     out = os.path.join(target_dir, "security")
-    url = f"https://{target}"
+    url = get_working_url(target)
     t = TIMEOUTS["security"]
 
     # ── ambil headers via curl ────────────────────────────────────
     code, stdout, _ = exec_cmd(
-        ["curl", "-sI", "-A", DEFAULT_USER_AGENT,
+        ["curl", "-sI", "-L", "-A", DEFAULT_USER_AGENT,
          "--max-time", "15", url],
         timeout=t,
     )
@@ -70,15 +70,27 @@ def run(target: str, target_dir: str):
     # ── nuclei ────────────────────────────────────────────────────
     if tool_available(TOOLS["nuclei"]):
         nuclei_out = os.path.join(out, "nuclei_results.txt")
-        exec_cmd(
-            [
+        alive_file = os.path.join(target_dir, "subdomain", "alive_subdomains.txt")
+        
+        # Jika ada list subdomain dari Fase 1, scan semuanya sekaligus
+        if os.path.exists(alive_file) and os.path.getsize(alive_file) > 0:
+            info("menjalankan nuclei scan massal pada subdomain aktif...")
+            nuclei_cmd = [
+                TOOLS["nuclei"], "-list", alive_file,
+                "-severity", "critical,high,medium",
+                "-o", nuclei_out,
+                "-silent"
+            ]
+        else:
+            info("menjalankan nuclei scan pada target utama...")
+            nuclei_cmd = [
                 TOOLS["nuclei"], "-u", url,
                 "-severity", "critical,high,medium",
                 "-o", nuclei_out,
                 "-silent"
-            ],
-            timeout=t,
-        )
+            ]
+            
+        exec_cmd(nuclei_cmd, timeout=t)
         info("nuclei selesai")
     else:
         warn("nuclei tidak ditemukan, dilewati")
