@@ -50,7 +50,7 @@ python recon.py -t example.com --no-resume
 | 6   | js          | curl + regex (linkfinder jika ada)   |
 | 7   | security    | curl, nikto                          |
 | 8   | dork        | generator (tidak butuh tools)        |
-| 9   | dirbrute    | dirb atau ffuf                       |
+| 9   | dirbrute    | ffuf                                 |
 
 ## Konfigurasi
 
@@ -149,7 +149,7 @@ Lihat `.env.example` untuk daftar lengkap variabel yang tersedia.
 
 ```bash
 # apt
-sudo apt install nmap curl whois dnsutils nikto wafw00f whatweb dirb
+sudo apt install nmap curl whois dnsutils nikto wafw00f whatweb
 
 # go
 go install github.com/projectdiscovery/naabu/v2/cmd/naabu@latest
@@ -183,7 +183,6 @@ Framework ini berdiri di atas berbagai *open-source tools* hebat buatan komunita
 *   **Gau**: [lc](https://github.com/lc/gau)
 *   **Waybackurls**: [TomNomNom](https://github.com/tomnomnom/waybackurls)
 *   **Nikto**: [Sullo](https://github.com/sullo/nikto)
-*   **Dirb**: [SourceForge](http://dirb.sourceforge.net/)
 *   **Ffuf**: [Ffuf](https://github.com/ffuf/ffuf)
 *   **LinkFinder**: [GerbenJavado](https://github.com/GerbenJavado/LinkFinder)
 *   **SecLists (Wordlists)**: [Daniel Miessler](https://github.com/danielmiessler/SecLists)
