@@ -1,11 +1,10 @@
 """
 Fase 5: URL Gathering
-Menggunakan gau (GetAllUrls) untuk mengumpulkan URL historis secara pasif.
+Menggunakan Katana untuk perayapan aktif (crawling) dan pemetaan endpoint API/JS.
 """
 
 import os
-import shlex
-from core.utils import info, warn, run as exec_cmd, run_shell as exec_shell, tool_available, read_lines, write_lines, dedupe_file
+from core.utils import info, warn, run as exec_cmd, tool_available, read_lines, write_lines
 from config import INTERESTING_PATTERNS, TIMEOUTS, TOOLS
 
 
@@ -14,22 +13,26 @@ def run(target: str, target_dir: str):
     all_file  = os.path.join(out, "all_urls.txt")
     t = TIMEOUTS["urls"]
 
-    # ── gau ──────────────────────────────────────────────────────
-    if tool_available(TOOLS["gau"]):
-        gau_out = os.path.join(out, "gau.txt")
-        safe_target = shlex.quote(target)
-        safe_out = shlex.quote(gau_out)
-        exec_shell(f"{TOOLS['gau']} {safe_target} > {safe_out} 2>/dev/null", timeout=t)
-        info("gau selesai")
+    # ── katana ───────────────────────────────────────────────────
+    if tool_available(TOOLS["katana"]):
+        kat_out = os.path.join(out, "katana.txt")
+        exec_cmd(
+            [
+                TOOLS["katana"], "-u", f"https://{target}",
+                "-silent", "-jc", "-o", kat_out
+            ],
+            timeout=t,
+        )
+        info("katana crawling selesai")
     else:
-        warn("gau tidak ditemukan, URL gathering dilewati")
-        warn("install: go install github.com/lc/gau/v2/cmd/gau@latest")
+        warn("katana tidak ditemukan, URL gathering dilewati")
+        warn("install: go install github.com/projectdiscovery/katana/cmd/katana@latest")
         return
 
     # ── ambil & deduplikat hasil ───────────────────────────────────
     all_urls = []
-    if os.path.exists(gau_out):
-        all_urls = read_lines(gau_out)
+    if os.path.exists(kat_out):
+        all_urls = read_lines(kat_out)
 
     all_urls = sorted(set(all_urls))
     write_lines(all_file, all_urls)

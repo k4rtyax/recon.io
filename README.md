@@ -39,7 +39,7 @@ python recon.py -t example.com --no-resume
 | 2   | dns         | whois, dig                           |
 | 3   | ports       | naabu, nmap                          |
 | 4   | fingerprint | httpx, wafw00f, curl                 |
-| 5   | urls        | gau                                  |
+| 5   | urls        | katana                               |
 | 6   | js          | curl + regex (linkfinder jika ada)   |
 | 7   | security    | curl, nuclei                         |
 | 8   | dork        | generator (tidak butuh tools)        |
@@ -100,7 +100,7 @@ Lihat `.env.example` untuk daftar lengkap variabel yang tersedia.
         │   ├── headers.txt
         │   └── tech_stack.txt
         ├── urls/
-        │   ├── gau.txt
+        │   ├── katana.txt
         │   ├── all_urls.txt
         │   ├── interesting_urls.txt
         │   ├── params_urls.txt
@@ -150,7 +150,7 @@ go install github.com/projectdiscovery/alterx/cmd/alterx@latest
 go install github.com/projectdiscovery/dnsx/cmd/dnsx@latest
 go install github.com/projectdiscovery/httpx/cmd/httpx@latest
 go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
-go install github.com/lc/gau/v2/cmd/gau@latest
+go install github.com/projectdiscovery/katana/cmd/katana@latest
 go install github.com/ffuf/ffuf/v2@latest
 
 # linkfinder (opsional)
@@ -172,7 +172,7 @@ Framework ini berdiri di atas berbagai *open-source tools* hebat buatan komunita
 *   **Nmap**: [Nmap.org](https://nmap.org/)
 *   **Naabu**: [ProjectDiscovery](https://github.com/projectdiscovery/naabu)
 *   **Wafw00f**: [EnableSecurity](https://github.com/EnableSecurity/wafw00f)
-*   **Gau**: [lc](https://github.com/lc/gau)
+*   **Katana**: [ProjectDiscovery](https://github.com/projectdiscovery/katana)
 *   **Nuclei**: [ProjectDiscovery](https://github.com/projectdiscovery/nuclei)
 *   **Ffuf**: [Ffuf](https://github.com/ffuf/ffuf)
 *   **LinkFinder**: [GerbenJavado](https://github.com/GerbenJavado/LinkFinder)
