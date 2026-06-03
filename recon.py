@@ -8,7 +8,6 @@ Penggunaan:
   python recon.py -f targets.txt
   python recon.py -d example.com --fase subdomain,dns,ports
   python recon.py -d example.com -o ~/hasil
-  python recon.py -d example.com --no-resume
 """
 
 import sys
@@ -72,12 +71,6 @@ def parse_args():
         ),
     )
     parser.add_argument(
-        "--no-resume",
-        action="store_true",
-        default=False,
-        help="jangan lanjutkan dari checkpoint, mulai dari awal",
-    )
-    parser.add_argument(
         "--list-fase",
         action="store_true",
         help="tampilkan daftar fase yang tersedia lalu keluar",
@@ -98,7 +91,6 @@ contoh penggunaan:
   python recon.py -s api.opera.com
   python recon.py -f targets.txt -o ~/hasil
   python recon.py -d example.com --fase subdomain,dns,ports
-  python recon.py -d example.com --no-resume
 
 fase yang tersedia:
   {chr(10)+'  '.join(f'{i+1:2}. {f}' for i, f in enumerate(FASE_LIST))}
@@ -174,7 +166,6 @@ def main():
     info(f"total target  : {total}")
     info(f"fase          : {', '.join(fases)}")
     info(f"output        : {args.output}")
-    info(f"resume        : {'tidak' if args.no_resume else 'ya'}")
 
     for i, target in enumerate(targets, 1):
         section(f"[{i}/{total}] {target}")
@@ -183,7 +174,6 @@ def main():
                 target=target,
                 output_dir=args.output,
                 fases=fases,
-                resume=not args.no_resume,
             )
         except KeyboardInterrupt:
             print()

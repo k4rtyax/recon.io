@@ -26,7 +26,6 @@ Thumbs.db
 
 # Recon output
 recon-output/
-*.checkpoint.json
 
 # Environment
 .env

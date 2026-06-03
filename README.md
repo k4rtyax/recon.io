@@ -15,22 +15,21 @@ Universal web recon framework untuk bug bounty hunting.
 ## Penggunaan
 
 ```bash
-python recon.py -t example.com
+python recon.py -d example.com
 python recon.py -f targets.txt
-python recon.py -t example.com --fase subdomain,dns,ports
-python recon.py -t example.com -o ~/hasil
-python recon.py -t example.com --no-resume
+python recon.py -d example.com --fase subdomain,dns,ports
+python recon.py -d example.com -o ~/hasil
 ```
 
 ## Argumen
 
 | Argumen       | Keterangan                                 |
 | ------------- | ------------------------------------------ |
-| `-t DOMAIN`   | satu target domain                         |
+| `-d DOMAIN`   | satu target domain                         |
+| `-s SUBDOMAIN`| target spesifik subdomain (otomatis melewati fase subdomain) |
 | `-f FILE`     | file berisi daftar target (satu per baris) |
 | `-o DIR`      | folder output (default: ./results)         |
 | `--fase FASE` | pilih fase tertentu, pisah koma            |
-| `--no-resume` | mulai dari awal, abaikan checkpoint        |
 | `--list-fase` | tampilkan daftar fase                      |
 
 ## Fase
@@ -80,7 +79,6 @@ Lihat `.env.example` untuk daftar lengkap variabel yang tersedia.
 ./results/
 └── example.com/
     └── recon_03_06_2026/
-        ├── .checkpoint.json     <- progress resume
         ├── subdomain/
         │   ├── subfinder.txt
         │   ├── alterx_permutations.txt
@@ -132,7 +130,6 @@ Lihat `.env.example` untuk daftar lengkap variabel yang tersedia.
 
 ## Fitur
 
-- **Resume/checkpoint** — kalau crash, jalankan ulang dan lanjut dari fase terakhir
 - **Pilih fase** — tidak perlu jalankan semua, pilih dengan `--fase`
 - **Multi target** — gunakan `-f` untuk recon banyak domain sekaligus
 - **Summary prioritas** — bagian atas report langsung highlight temuan penting
