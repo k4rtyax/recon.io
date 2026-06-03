@@ -1,6 +1,6 @@
 """
 Fase 5: URL Gathering
-gau + waybackurls, lalu filter interesting & berparameter.
+Menggunakan gau (GetAllUrls) untuk mengumpulkan URL historis secara pasif.
 """
 
 import os
@@ -22,25 +22,14 @@ def run(target: str, target_dir: str):
         exec_shell(f"{TOOLS['gau']} {safe_target} > {safe_out} 2>/dev/null", timeout=t)
         info("gau selesai")
     else:
-        warn("gau tidak ditemukan, dilewati")
+        warn("gau tidak ditemukan, URL gathering dilewati")
+        warn("install: go install github.com/lc/gau/v2/cmd/gau@latest")
+        return
 
-    # ── waybackurls ──────────────────────────────────────────────
-    if tool_available(TOOLS["waybackurls"]):
-        wb_out = os.path.join(out, "wayback.txt")
-        safe_target = shlex.quote(target)
-        safe_out = shlex.quote(wb_out)
-        exec_shell(f"echo {safe_target} | {TOOLS['waybackurls']} > {safe_out} 2>/dev/null", timeout=t)
-        info("waybackurls selesai")
-    else:
-        warn("waybackurls tidak ditemukan, dilewati")
-
-    # ── gabungkan + deduplikat ───────────────────────────────────
-    sources = ["gau.txt", "wayback.txt"]
+    # ── ambil & deduplikat hasil ───────────────────────────────────
     all_urls = []
-    for src in sources:
-        path = os.path.join(out, src)
-        if os.path.exists(path):
-            all_urls += read_lines(path)
+    if os.path.exists(gau_out):
+        all_urls = read_lines(gau_out)
 
     all_urls = sorted(set(all_urls))
     write_lines(all_file, all_urls)

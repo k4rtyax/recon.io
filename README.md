@@ -46,7 +46,7 @@ python recon.py -t example.com --no-resume
 | 2   | dns         | whois, dig                           |
 | 3   | ports       | naabu, nmap                          |
 | 4   | fingerprint | httpx, wafw00f, curl                 |
-| 5   | urls        | gau, waybackurls                     |
+| 5   | urls        | gau                                  |
 | 6   | js          | curl + regex (linkfinder jika ada)   |
 | 7   | security    | curl, nuclei                         |
 | 8   | dork        | generator (tidak butuh tools)        |
@@ -108,7 +108,6 @@ Lihat `.env.example` untuk daftar lengkap variabel yang tersedia.
         │   └── tech_stack.txt
         ├── urls/
         │   ├── gau.txt
-        │   ├── wayback.txt
         │   ├── all_urls.txt
         │   ├── interesting_urls.txt
         │   ├── params_urls.txt
@@ -158,7 +157,6 @@ go install github.com/projectdiscovery/httpx/cmd/httpx@latest
 go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
 go install github.com/tomnomnom/assetfinder@latest
 go install github.com/lc/gau/v2/cmd/gau@latest
-go install github.com/tomnomnom/waybackurls@latest
 go install github.com/ffuf/ffuf/v2@latest
 
 # linkfinder (opsional)
@@ -181,7 +179,6 @@ Framework ini berdiri di atas berbagai *open-source tools* hebat buatan komunita
 *   **Naabu**: [ProjectDiscovery](https://github.com/projectdiscovery/naabu)
 *   **Wafw00f**: [EnableSecurity](https://github.com/EnableSecurity/wafw00f)
 *   **Gau**: [lc](https://github.com/lc/gau)
-*   **Waybackurls**: [TomNomNom](https://github.com/tomnomnom/waybackurls)
 *   **Nuclei**: [ProjectDiscovery](https://github.com/projectdiscovery/nuclei)
 *   **Ffuf**: [Ffuf](https://github.com/ffuf/ffuf)
 *   **LinkFinder**: [GerbenJavado](https://github.com/GerbenJavado/LinkFinder)
