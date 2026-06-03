@@ -86,6 +86,7 @@ Lihat `.env.example` untuk daftar lengkap variabel yang tersedia.
         │   ├── alterx_permutations.txt
         │   ├── resolved_permutations.txt
         │   ├── all_subdomains.txt
+        │   ├── httpx_alive.json
         │   ├── alive_subdomains.txt
         │   └── alive_subdomains_info.txt
         ├── dns/

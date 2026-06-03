@@ -11,15 +11,20 @@ echo "[*] Menginstal dependensi Python (wafw00f, rich)..."
 pip install wafw00f rich --break-system-packages 2>/dev/null || pip install wafw00f rich
 
 echo "[*] Menginstal tools Go..."
-export PATH="$PATH:$HOME/go/bin"
-go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
-go install github.com/projectdiscovery/alterx/cmd/alterx@latest
-go install github.com/projectdiscovery/dnsx/cmd/dnsx@latest
-go install github.com/projectdiscovery/httpx/cmd/httpx@latest
-go install github.com/projectdiscovery/naabu/v2/cmd/naabu@latest
-go install github.com/projectdiscovery/katana/cmd/katana@latest
-go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
-go install github.com/ffuf/ffuf/v2@latest
+if ! command -v go &>/dev/null; then
+    echo "[!] Go tidak ditemukan. Install Go terlebih dahulu: https://go.dev/doc/install"
+    echo "[!] Melewati instalasi tools Go..."
+else
+    export PATH="$PATH:$HOME/go/bin"
+    go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
+    go install github.com/projectdiscovery/alterx/cmd/alterx@latest
+    go install github.com/projectdiscovery/dnsx/cmd/dnsx@latest
+    go install github.com/projectdiscovery/httpx/cmd/httpx@latest
+    go install github.com/projectdiscovery/naabu/v2/cmd/naabu@latest
+    go install github.com/projectdiscovery/katana/cmd/katana@latest
+    go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
+    go install github.com/ffuf/ffuf/v2@latest
+fi
 
 echo ""
 echo "[✓] Setup selesai!"

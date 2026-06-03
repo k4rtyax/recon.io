@@ -5,6 +5,7 @@ dnsx untuk resolusi DNS, dan httpx untuk probe keaktifan host.
 """
 
 import os
+import json
 from core.utils import info, warn, run as exec_cmd, tool_available, read_lines, write_lines
 from config import TIMEOUTS, TOOLS
 
@@ -92,7 +93,6 @@ def run(target: str, target_dir: str):
         clean_domains = []
         info_lines = []
         if os.path.exists(httpx_json):
-            import json
             with open(httpx_json) as f:
                 for line in f:
                     if not line.strip():

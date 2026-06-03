@@ -5,6 +5,7 @@ Ambil file JS dari URL list, ekstrak endpoint dan potential secrets.
 
 import os
 import re
+from urllib.parse import urlparse
 from core.utils import info, warn, run as exec_cmd, read_lines, write_lines, tool_available
 from config import SECRET_PATTERNS, DEFAULT_USER_AGENT, TIMEOUTS, TOOLS
 
@@ -16,8 +17,7 @@ def run(target: str, target_dir: str):
     t = TIMEOUTS["js"]
 
     # ── ambil semua URL .js ───────────────────────────────────────
-    from urllib.parse import urlparse as _urlparse
-    js_urls = [u for u in all_urls if _urlparse(u).path.endswith(".js")]
+    js_urls = [u for u in all_urls if urlparse(u).path.endswith(".js")]
     js_urls_file = os.path.join(out, "js_files.txt")
     write_lines(js_urls_file, js_urls)
     info(f"JS files ditemukan: {len(js_urls)}")

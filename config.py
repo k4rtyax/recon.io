@@ -13,7 +13,7 @@ def _load_env(path=".env"):
                 continue
             if "=" in line:
                 key, _, val = line.partition("=")
-                os.environ.setdefault(key.strip(), val.strip())
+                os.environ.setdefault(key.strip(), val.strip().strip("'\""))
 
 _load_env()
 

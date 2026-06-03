@@ -19,7 +19,7 @@ def run(target: str, target_dir: str):
         httpx_json = os.path.join(out, "httpx_tech.json")
         exec_cmd(
             [
-                TOOLS["httpx"], "-u", url,
+                TOOLS["httpx"], "-u", target,
                 "-silent", "-tech-detect", "-json",
                 "-o", httpx_json
             ],

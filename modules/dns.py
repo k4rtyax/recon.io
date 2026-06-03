@@ -12,6 +12,11 @@ def run(target: str, target_dir: str):
     out = os.path.join(target_dir, "dns")
     t = TIMEOUTS["dns"]
 
+    if not tool_available("dig"):
+        warn("dig tidak ditemukan, fase DNS dilewati")
+        warn("install: sudo apt install dnsutils")
+        return
+
     # ── whois ────────────────────────────────────────────────────
     if tool_available("whois"):
         code, stdout, _ = exec_cmd(["whois", target], timeout=t)
