@@ -69,15 +69,20 @@ def run_target(
         return
 
     # setup folder target
-    date_tag    = datetime.now().strftime("%Y%m%d_%H%M%S")
+    # Format: recon_DD_MM_YYYY
+    date_tag    = datetime.now().strftime("recon_%d_%m_%Y")
     folder_name = target.replace("*.", "").replace("/", "_")
     target_dir  = os.path.join(output_dir, folder_name, date_tag)
     _setup_dirs(target_dir)
 
     # checkpoint
+    ckpt_path = os.path.join(target_dir, ".checkpoint.json")
+    if not resume and os.path.exists(ckpt_path):
+        os.remove(ckpt_path)
+    
     ckpt = Checkpoint(target_dir, target)
 
-    # jika resume, cari checkpoint lama
+    # jika resume, cari checkpoint lama (jika ada folder tanggal sebelumnya)
     if resume:
         old_dir = _find_latest_dir(output_dir, folder_name)
         if old_dir and old_dir != target_dir:

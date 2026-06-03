@@ -19,7 +19,7 @@ _load_env()
 
 DEFAULT_OUTPUT_DIR = os.environ.get(
     "RECON_OUTPUT_DIR",
-    os.path.join(os.path.expanduser("~"), "recon-output"),
+    os.path.join(os.getcwd(), "results"),
 )
 
 DEFAULT_TIMEOUT = int(os.environ.get("RECON_TIMEOUT", "300"))
