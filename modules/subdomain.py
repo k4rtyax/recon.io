@@ -104,7 +104,7 @@ def run(target: str, target_dir: str):
                             clean_domains.append(url)
                             status = data.get("status_code", 0)
                             title = data.get("title", "")
-                            tech = ",".join(data.get("tech", []))
+                            tech = ",".join(data.get("technologies", data.get("tech", [])))
                             info_lines.append(f"{url} [{status}] [{title}] [{tech}]")
                     except Exception:
                         pass

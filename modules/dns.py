@@ -44,10 +44,13 @@ def run(target: str, target_dir: str):
     ns_list = [ns.strip().rstrip(".") for ns in ns_out.splitlines() if ns.strip()]
 
     axfr_file = os.path.join(out, "zone_transfer.txt")
+    axfr_results = []
     for ns in ns_list:
         code, stdout, _ = exec_cmd(["dig", f"@{ns}", target, "AXFR"], timeout=t)
         if stdout and "Transfer failed" not in stdout:
-            with open(axfr_file, "a") as f:
-                f.write(f"=== AXFR via {ns} ===\n{stdout}\n")
+            axfr_results.append(f"=== AXFR via {ns} ===\n{stdout}")
+    if axfr_results:
+        with open(axfr_file, "w") as f:
+            f.write("\n".join(axfr_results) + "\n")
 
     info("zone transfer check selesai")

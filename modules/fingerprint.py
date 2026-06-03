@@ -64,7 +64,7 @@ def _parse_httpx_tech(json_file: str, tech_file: str):
                     continue
                 data = json.loads(line)
                 # httpx returns a list of tech in 'tech' key
-                for t in data.get("tech", []):
+                for t in data.get("technologies", data.get("tech", [])):
                     techs.add(t)
     except Exception as e:
         warn(f"gagal membaca hasil teknologi httpx: {e}")

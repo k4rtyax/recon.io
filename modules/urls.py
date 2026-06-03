@@ -59,19 +59,16 @@ def run(target: str, target_dir: str):
 
 
 def _is_interesting(url: str) -> bool:
-    """Cocokkan pattern sebagai path segment, bukan substring.
-    /admin → match.  /latest → TIDAK match 'test'.
+    """Cocokkan pattern sebagai path segment exact, bukan substring.
+    /admin → match.  /administrator → TIDAK match 'admin'.
+    /developer → TIDAK match 'dev'.
     """
     try:
         path = urlparse(url.lower()).path
     except Exception:
         return False
-    for p in INTERESTING_PATTERNS:
-        # Cek apakah pattern muncul sebagai awal path segment
-        # /admin, /admin/, /admin?... semua match
-        if f"/{p}" in path:
-            return True
-    return False
+    segments = set(path.strip("/").split("/"))
+    return bool(segments & set(INTERESTING_PATTERNS))
 
 
 # Ekstensi file yang jelas sensitif

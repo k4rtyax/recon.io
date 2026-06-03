@@ -16,7 +16,8 @@ def run(target: str, target_dir: str):
     t = TIMEOUTS["js"]
 
     # ── ambil semua URL .js ───────────────────────────────────────
-    js_urls = [u for u in all_urls if u.endswith(".js")]
+    from urllib.parse import urlparse as _urlparse
+    js_urls = [u for u in all_urls if _urlparse(u).path.endswith(".js")]
     js_urls_file = os.path.join(out, "js_files.txt")
     write_lines(js_urls_file, js_urls)
     info(f"JS files ditemukan: {len(js_urls)}")
@@ -26,7 +27,7 @@ def run(target: str, target_dir: str):
     emails_all    = []
 
     endpoint_re = re.compile(
-        r"""(?:url|path|endpoint|api|href|action)\s*[:=]\s*['"]([/][^'"]{2,})['"]""",
+        r"""(?:path|endpoint|api|href|action)\s*[:=]\s*['"]([/][^'"]{2,})['"]""",
         re.IGNORECASE,
     )
     email_re = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
@@ -69,12 +70,15 @@ def run(target: str, target_dir: str):
     lf_path = TOOLS["linkfinder"]
     if lf_path and os.path.exists(lf_path) and js_urls:
         lf_out = os.path.join(out, "linkfinder.txt")
+        lf_results = []
         for js_url in js_urls[:20]:
             code, stdout, _ = exec_cmd(
                 ["python3", lf_path, "-i", js_url, "-o", "cli"],
                 timeout=t,
             )
             if stdout:
-                with open(lf_out, "a") as f:
-                    f.write(f"=== {js_url} ===\n{stdout}\n")
+                lf_results.append(f"=== {js_url} ===\n{stdout}")
+        if lf_results:
+            with open(lf_out, "w") as f:
+                f.write("\n".join(lf_results) + "\n")
         info("linkfinder selesai")

@@ -24,10 +24,18 @@ def run(target: str, target_dir: str):
     with open(raw_hdrs_file, "w") as f:
         f.write(stdout)
 
-    headers_lower = stdout.lower()
+    if code != 0 or not stdout.strip():
+        warn(f"curl gagal mengambil headers (code={code}), security check dilewati")
+        write_lines(os.path.join(out, "missing_headers.txt"), [])
+        return
+
+    header_names = {
+        line.split(":")[0].strip().lower()
+        for line in stdout.splitlines() if ":" in line
+    }
 
     # ── cek security headers yang hilang ─────────────────────────
-    missing = [h for h in REQUIRED_SECURITY_HEADERS if h.lower() not in headers_lower]
+    missing = [h for h in REQUIRED_SECURITY_HEADERS if h.lower() not in header_names]
     missing_file = os.path.join(out, "missing_headers.txt")
     write_lines(missing_file, missing)
     info(f"missing security headers: {len(missing)}")
@@ -35,7 +43,7 @@ def run(target: str, target_dir: str):
     # ── analisis header detail ────────────────────────────────────
     analysis = []
     for hdr in REQUIRED_SECURITY_HEADERS:
-        status = "MISSING" if hdr.lower() not in headers_lower else "present"
+        status = "MISSING" if hdr.lower() not in header_names else "present"
         analysis.append(f"{status:<10} {hdr}")
 
     with open(os.path.join(out, "security_analysis.txt"), "w") as f:

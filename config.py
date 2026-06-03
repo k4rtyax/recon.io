@@ -103,9 +103,9 @@ INTERESTING_PATTERNS = [
 # Setiap pattern dirancang untuk mencocokkan format credential spesifik,
 # bukan string generik. Meminimalkan false positive.
 SECRET_PATTERNS = [
-    # ── API keys dengan value nyata (min 16 char setelah delimiter) ──
-    r"api[_-]?key\s*[=:]\s*['\"]?[a-zA-Z0-9_\-]{16,}",
-    r"secret[_-]?key\s*[=:]\s*['\"]?[a-zA-Z0-9_\-]{16,}",
+    # ── API keys dengan value nyata (min 16 char, wajib dalam quotes) ──
+    r"api[_-]?key\s*[=:]\s*['\"][a-zA-Z0-9_\-]{16,}['\"]",
+    r"secret[_-]?key\s*[=:]\s*['\"][a-zA-Z0-9_\-]{16,}['\"]",
     # ── Password/credential dengan value dalam quotes ──
     r"(?:password|passwd|pwd)\s*[=:]\s*['\"][^'\"]{8,}['\"]",
     # ── Cloud provider keys (format spesifik) ──
