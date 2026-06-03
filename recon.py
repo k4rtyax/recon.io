@@ -23,7 +23,7 @@ import argparse
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config import FASE_LIST, DEFAULT_OUTPUT_DIR
-from core.utils import banner, section, info, warn, err
+from core.utils import banner, section, info, warn, err, console
 from core.runner import run_target
 
 
@@ -138,10 +138,10 @@ def main():
 
     # ── list fase ────────────────────────────────────────────────
     if args.list_fase:
-        print("  fase yang tersedia:\n")
+        console.print("  [bold cyan]fase yang tersedia:[/bold cyan]\n")
         for i, f in enumerate(FASE_LIST, 1):
-            print(f"    {i:2}. {f}")
-        print()
+            console.print(f"    [bold green]{i:2}.[/bold green] [bold white]{f}[/bold white]")
+        console.print()
         sys.exit(0)
 
     # ── tentukan daftar fase ─────────────────────────────────────
@@ -187,10 +187,8 @@ def main():
                 fases=fases,
             )
         except KeyboardInterrupt:
-            print()
+            console.print()
             warn("dihentikan oleh pengguna (Ctrl+C)")
-            warn("progress sudah disimpan di checkpoint")
-            warn("jalankan ulang untuk melanjutkan")
             sys.exit(0)
         except Exception as exc:
             err(f"error pada target {target}: {exc}")

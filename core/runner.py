@@ -9,7 +9,8 @@ from datetime import datetime
 from config import FASE_LIST, DEFAULT_OUTPUT_DIR
 from core.report import Report
 from core import utils
-from core.utils import info, ok, warn, err, section
+from core.utils import info, ok, warn, err, section, console
+from rich.progress import Progress, TextColumn, BarColumn, MofNCompleteColumn, TimeElapsedColumn
 
 import modules.subdomain  as mod_subdomain
 import modules.dns        as mod_dns
@@ -72,8 +73,6 @@ def run_target(
     target_dir  = os.path.join(output_dir, folder_name, date_tag)
     _setup_dirs(target_dir)
 
-
-
     # report
     report = Report(target, target_dir)
 
@@ -84,17 +83,29 @@ def run_target(
     total  = len(fases)
     done_c = 0
 
-    for i, fase in enumerate(fases, 1):
-        info(f"[{i}/{total}] {fase} ...")
-        mod = FASE_MAP[fase]
+    with Progress(
+        TextColumn("[bold blue]{task.description}"),
+        BarColumn(bar_width=30),
+        MofNCompleteColumn(),
+        TimeElapsedColumn(),
+        console=console,
+    ) as progress:
+        task_id = progress.add_task("Memulai...", total=total)
 
-        try:
-            mod.run(target, target_dir)
-            _add_to_report(report, fase)
-            ok(f"[{i}/{total}] {fase} selesai")
-            done_c += 1
-        except Exception as exc:
-            warn(f"[{i}/{total}] {fase} gagal: {exc}")
+        for fase in fases:
+            progress.update(task_id, description=f"Fase {fase}")
+            info(f"Menjalankan fase {fase}...")
+            mod = FASE_MAP[fase]
+
+            try:
+                mod.run(target, target_dir)
+                _add_to_report(report, fase)
+                ok(f"Fase {fase} selesai")
+                done_c += 1
+            except Exception as exc:
+                warn(f"Fase {fase} gagal: {exc}")
+
+            progress.advance(task_id)
 
     # simpan laporan
     md_path, txt_path = report.save()

@@ -2,17 +2,21 @@ import sys
 import shutil
 import subprocess
 from datetime import datetime
+from rich.console import Console
+from rich.theme import Theme
+from rich.panel import Panel
+from rich.text import Text
 
-# ─── WARNA TERMINAL ────────────────────
-RESET  = "\033[0m"
-BOLD   = "\033[1m"
-DIM    = "\033[2m"
-WHITE  = "\033[37m"
-GRAY   = "\033[90m"
-GREEN  = "\033[32m"
-YELLOW = "\033[33m"
-RED    = "\033[31m"
-CYAN   = "\033[36m"
+# Inisialisasi rich console
+console = Console(
+    theme=Theme({
+        "info": "cyan",
+        "ok": "bold green",
+        "warn": "bold yellow",
+        "err": "bold red",
+        "timestamp": "dim white",
+    })
+)
 
 
 def _ts():
@@ -20,27 +24,24 @@ def _ts():
 
 
 def info(msg: str):
-    print(f"  {GRAY}[{_ts()}]{RESET}  {msg}")
+    console.print(f"[timestamp][{_ts()}][/timestamp] [info][*][/info] {msg}")
 
 
 def ok(msg: str):
-    print(f"  {GRAY}[{_ts()}]{RESET}  {GREEN}ok{RESET}  {msg}")
+    console.print(f"[timestamp][{_ts()}][/timestamp] [ok][✓][/ok] {msg}")
 
 
 def warn(msg: str):
-    print(f"  {GRAY}[{_ts()}]{RESET}  {YELLOW}!{RESET}   {msg}")
+    console.print(f"[timestamp][{_ts()}][/timestamp] [warn][!][/warn] {msg}")
 
 
 def err(msg: str):
-    print(f"  {GRAY}[{_ts()}]{RESET}  {RED}err{RESET} {msg}")
+    console.print(f"[timestamp][{_ts()}][/timestamp] [err][✗][/err] {msg}")
 
 
 def section(title: str):
-    width = 52
-    print()
-    print(f"  {DIM}{'─' * width}{RESET}")
-    print(f"  {BOLD}{title}{RESET}")
-    print(f"  {DIM}{'─' * width}{RESET}")
+    console.print()
+    console.print(f"[bold cyan]── {title} ──[/bold cyan]")
 
 
 def banner(version="1.5"):
@@ -53,9 +54,8 @@ def banner(version="1.5"):
 ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░     ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓██▓▒░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░ 
 ░▒▓█▓▒░░▒▓█▓▒░▒▓████████▓▒░▒▓██████▓▒░ ░▒▓██████▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓██▓▒░▒▓█▓▒░░▒▓██████▓▒░  
 """
-    print(f"{CYAN}{art}{RESET}")
-    print(f"  {DIM}v{version} — universal web recon framework{RESET}")
-    print()
+    console.print(f"[bold cyan]{art}[/bold cyan]")
+    console.print(f"  [dim]v{version} — universal web recon framework[/dim]\n")
 
 
 def tool_available(name: str) -> bool:
