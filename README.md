@@ -42,7 +42,7 @@ python recon.py -t example.com --no-resume
 
 | #   | Fase        | Tools                                |
 | --- | ----------- | ------------------------------------ |
-| 1   | subdomain   | subfinder, assetfinder, amass, httpx |
+| 1   | subdomain   | subfinder, httpx                     |
 | 2   | dns         | whois, dig                           |
 | 3   | ports       | naabu, nmap                          |
 | 4   | fingerprint | httpx, wafw00f, curl                 |
@@ -89,8 +89,6 @@ Lihat `.env.example` untuk daftar lengkap variabel yang tersedia.
         ├── .checkpoint.json     <- progress resume
         ├── subdomain/
         │   ├── subfinder.txt
-        │   ├── assetfinder.txt
-        │   ├── amass.txt
         │   ├── all_subdomains.txt
         │   └── alive_subdomains.txt
         ├── dns/
@@ -155,7 +153,6 @@ go install github.com/projectdiscovery/naabu/v2/cmd/naabu@latest
 go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
 go install github.com/projectdiscovery/httpx/cmd/httpx@latest
 go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
-go install github.com/tomnomnom/assetfinder@latest
 go install github.com/lc/gau/v2/cmd/gau@latest
 go install github.com/ffuf/ffuf/v2@latest
 
@@ -172,8 +169,6 @@ Tools yang tidak ada akan dilewati otomatis, recon tetap berjalan.
 Framework ini berdiri di atas berbagai *open-source tools* hebat buatan komunitas *security research*. Berikut daftar tools yang dipanggil oleh recon.io beserta link referensinya:
 
 *   **Subfinder**: [ProjectDiscovery](https://github.com/projectdiscovery/subfinder)
-*   **Assetfinder**: [TomNomNom](https://github.com/tomnomnom/assetfinder)
-*   **Amass**: [OWASP](https://github.com/owasp-amass/amass)
 *   **Httpx**: [ProjectDiscovery](https://github.com/projectdiscovery/httpx)
 *   **Nmap**: [Nmap.org](https://nmap.org/)
 *   **Naabu**: [ProjectDiscovery](https://github.com/projectdiscovery/naabu)

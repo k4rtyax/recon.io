@@ -1,6 +1,6 @@
 """
 Fase 1: Subdomain Enumeration
-Menggunakan subfinder, assetfinder, amass.
+Menggunakan subfinder untuk pencarian pasif, diikuti httpx untuk probe keaktifan host.
 """
 
 import os
@@ -20,38 +20,15 @@ def run(target: str, target_dir: str):
         exec_cmd([TOOLS["subfinder"], "-d", target, "-silent", "-o", sf_out], timeout=t)
         info("subfinder selesai")
     else:
-        warn("subfinder tidak ditemukan, dilewati")
+        warn("subfinder tidak ditemukan, subdomain enumeration dilewati")
+        warn("install: go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest")
+        return
 
-    # ── assetfinder ──────────────────────────────────────────────
-    if tool_available(TOOLS["assetfinder"]):
-        af_out = os.path.join(out, "assetfinder.txt")
-        code, stdout, _ = exec_cmd([TOOLS["assetfinder"], "--subs-only", target], timeout=t)
-        if code == 0 and stdout:
-            with open(af_out, "w") as f:
-                f.write(stdout)
-        info("assetfinder selesai")
-    else:
-        warn("assetfinder tidak ditemukan, dilewati")
-
-    # ── amass (passive saja, cepat) ───────────────────────────────
-    if tool_available(TOOLS["amass"]):
-        am_out = os.path.join(out, "amass.txt")
-        exec_cmd(
-            [TOOLS["amass"], "enum", "-passive", "-d", target, "-o", am_out],
-            timeout=t,
-        )
-        info("amass selesai")
-    else:
-        warn("amass tidak ditemukan, dilewati")
-
-    # ── gabungkan + deduplikat ───────────────────────────────────
-    sources = ["subfinder.txt", "assetfinder.txt", "amass.txt"]
+    # ── ambil & deduplikat hasil ───────────────────────────────────
     lines = []
-    for src in sources:
-        path = os.path.join(out, src)
-        if os.path.exists(path):
-            with open(path) as f:
-                lines += [l.strip() for l in f if l.strip()]
+    if os.path.exists(sf_out):
+        with open(sf_out) as f:
+            lines = [l.strip() for l in f if l.strip()]
 
     with open(all_file, "w") as f:
         for line in sorted(set(lines)):
