@@ -22,6 +22,13 @@ python recon.py -d example.com --fase subdomain,dns,ports
 python recon.py -d example.com -o ~/hasil
 ```
 
+Setelah instalasi selesai, Anda juga dapat menjalankan framework ini secara global dari direktori mana pun cukup dengan perintah alias `recon` (atau `recon.io`):
+
+```bash
+recon -d example.com
+recon -d example.com -A
+```
+
 ## Argumen
 
 | Argumen       | Keterangan                                 |

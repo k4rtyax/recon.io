@@ -133,6 +133,7 @@ REQUIRED_SECURITY_HEADERS = [
 # ─── WORDLIST PATHS ─────────────────────────────────────────────
 WORDLIST_PATHS = [
     os.environ.get("RECON_WORDLIST", ""),
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "wordlists", "common.txt"),
     "/usr/share/wordlists/dirb/common.txt",
     "/usr/share/dirb/wordlists/common.txt",
     "/usr/share/seclists/Discovery/Web-Content/common.txt",
