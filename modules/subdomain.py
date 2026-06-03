@@ -48,6 +48,8 @@ def run(target: str, target_dir: str):
         exec_cmd(
             [
                 TOOLS["dnsx"], "-l", alt_out,
+                "-wd", target,
+                "-wt", "5",
                 "-silent", "-o", resolved_file
             ],
             timeout=t
@@ -104,7 +106,8 @@ def run(target: str, target_dir: str):
                             clean_domains.append(url)
                             status = data.get("status_code", 0)
                             title = data.get("title", "")
-                            tech = ",".join(data.get("technologies", data.get("tech", [])))
+                            tech_list = data.get("technologies") or data.get("tech") or []
+                            tech = ",".join(tech_list)
                             info_lines.append(f"{url} [{status}] [{title}] [{tech}]")
                     except Exception:
                         pass
