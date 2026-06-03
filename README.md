@@ -45,7 +45,7 @@ python recon.py -t example.com --no-resume
 | 1   | subdomain   | subfinder, assetfinder, amass, httpx |
 | 2   | dns         | whois, dig                           |
 | 3   | ports       | naabu, nmap                          |
-| 4   | fingerprint | whatweb, wafw00f, curl               |
+| 4   | fingerprint | httpx, wafw00f, curl                 |
 | 5   | urls        | gau, waybackurls                     |
 | 6   | js          | curl + regex (linkfinder jika ada)   |
 | 7   | security    | curl, nuclei                         |
@@ -149,7 +149,7 @@ Lihat `.env.example` untuk daftar lengkap variabel yang tersedia.
 
 ```bash
 # apt
-sudo apt install nmap curl whois dnsutils wafw00f whatweb
+sudo apt install nmap curl whois dnsutils wafw00f
 
 # go
 go install github.com/projectdiscovery/naabu/v2/cmd/naabu@latest
@@ -179,7 +179,6 @@ Framework ini berdiri di atas berbagai *open-source tools* hebat buatan komunita
 *   **Httpx**: [ProjectDiscovery](https://github.com/projectdiscovery/httpx)
 *   **Nmap**: [Nmap.org](https://nmap.org/)
 *   **Naabu**: [ProjectDiscovery](https://github.com/projectdiscovery/naabu)
-*   **WhatWeb**: [UrbanAdventurer](https://github.com/urbanadventurer/WhatWeb)
 *   **Wafw00f**: [EnableSecurity](https://github.com/EnableSecurity/wafw00f)
 *   **Gau**: [lc](https://github.com/lc/gau)
 *   **Waybackurls**: [TomNomNom](https://github.com/tomnomnom/waybackurls)

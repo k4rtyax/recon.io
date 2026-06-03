@@ -1,9 +1,10 @@
 """
 Fase 4: Fingerprinting
-WhatWeb untuk tech stack, wafw00f untuk WAF detection.
+httpx dengan -tech-detect untuk tech stack, wafw00f untuk WAF detection.
 """
 
 import os
+import json
 from core.utils import info, warn, run as exec_cmd, tool_available
 from config import DEFAULT_USER_AGENT, TIMEOUTS, TOOLS
 
@@ -13,20 +14,22 @@ def run(target: str, target_dir: str):
     url = f"https://{target}"
     t = TIMEOUTS["fingerprint"]
 
-    # ── whatweb ──────────────────────────────────────────────────
-    if tool_available(TOOLS["whatweb"]):
-        ww_out = os.path.join(out, "whatweb.txt")
-        code, stdout, _ = exec_cmd(
-            [TOOLS["whatweb"], "--user-agent", DEFAULT_USER_AGENT, "-a", "3",
-             "--log-brief", ww_out, url],
+    # ── httpx (technology detect) ─────────────────────────────────
+    if tool_available(TOOLS["httpx"]):
+        httpx_json = os.path.join(out, "httpx_tech.json")
+        exec_cmd(
+            [
+                TOOLS["httpx"], "-u", url,
+                "-silent", "-tech-detect", "-json",
+                "-o", httpx_json
+            ],
             timeout=t,
         )
-        # juga simpan tech stack
         tech_file = os.path.join(out, "tech_stack.txt")
-        _parse_whatweb(ww_out, tech_file)
-        info("whatweb selesai")
+        _parse_httpx_tech(httpx_json, tech_file)
+        info("httpx tech-detect selesai")
     else:
-        warn("whatweb tidak ditemukan, dilewati")
+        warn("httpx tidak ditemukan, tech-detect dilewati")
 
     # ── wafw00f ──────────────────────────────────────────────────
     if tool_available(TOOLS["wafw00f"]):
@@ -50,19 +53,22 @@ def run(target: str, target_dir: str):
     info("headers grab selesai")
 
 
-def _parse_whatweb(ww_file: str, tech_file: str):
-    if not os.path.exists(ww_file):
+def _parse_httpx_tech(json_file: str, tech_file: str):
+    if not os.path.exists(json_file):
         return
     techs = set()
-    with open(ww_file) as f:
-        for line in f:
-            # whatweb brief format: URL [status] Tech1, Tech2[version], ...
-            parts = line.split("]", 1)
-            if len(parts) > 1:
-                for tech in parts[1].split(","):
-                    tech = tech.strip()
-                    if tech:
-                        techs.add(tech)
+    try:
+        with open(json_file) as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                data = json.loads(line)
+                # httpx returns a list of tech in 'tech' key
+                for t in data.get("tech", []):
+                    techs.add(t)
+    except Exception as e:
+        warn(f"gagal membaca hasil teknologi httpx: {e}")
+        
     with open(tech_file, "w") as f:
         for t in sorted(techs):
             f.write(t + "\n")

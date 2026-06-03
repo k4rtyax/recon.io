@@ -39,7 +39,6 @@ TOOLS = {
     "amass":        os.environ.get("RECON_TOOL_AMASS",       "amass"),
     "httpx":        os.environ.get("RECON_TOOL_HTTPX",       "httpx"),
     "nmap":         os.environ.get("RECON_TOOL_NMAP",        "nmap"),
-    "whatweb":      os.environ.get("RECON_TOOL_WHATWEB",     "whatweb"),
     "wafw00f":      os.environ.get("RECON_TOOL_WAFW00F",    "wafw00f"),
     "gau":          os.environ.get("RECON_TOOL_GAU",         "gau"),
     "waybackurls":  os.environ.get("RECON_TOOL_WAYBACKURLS", "waybackurls"),
