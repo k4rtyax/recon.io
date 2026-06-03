@@ -1,5 +1,5 @@
 """
-Fase 9: Directory Bruteforce
+Fase 8: Directory Bruteforce
 Menggunakan ffuf (modern Go-based fuzzer) sebagai default utama.
 """
 
@@ -20,7 +20,7 @@ def run(target: str, target_dir: str):
     out       = os.path.join(target_dir, "dirbrute")
     url       = f"https://{target}"
     wordlist  = _find_wordlist()
-    result_file = os.path.join(out, "dirb_results.txt")
+    result_file = os.path.join(out, "ffuf_results.txt")
     ffuf_out  = os.path.join(out, "ffuf_results.json")
     t = TIMEOUTS["dirbrute"]
 
@@ -55,7 +55,7 @@ def run(target: str, target_dir: str):
 
 
 def _parse_ffuf_results(json_file: str, txt_file: str, out_dir: str):
-    """Ekstrak hasil dari ffuf_results.json dan tulis ke dirb_results.txt dan found_paths.txt"""
+    """Ekstrak hasil dari ffuf_results.json dan tulis ke ffuf_results.txt dan found_paths.txt"""
     if not os.path.exists(json_file):
         warn("file hasil ffuf tidak ditemukan")
         return
@@ -83,7 +83,7 @@ def _parse_ffuf_results(json_file: str, txt_file: str, out_dir: str):
         
         formatted_lines.append(line)
 
-    # Tulis ke dirb_results.txt agar dibaca oleh report.py (menjaga kompatibilitas)
+    # Tulis ke ffuf_results.txt agar dibaca oleh report.py (menjaga kompatibilitas)
     with open(txt_file, "w") as f:
         f.write("\n".join(formatted_lines) + "\n")
 

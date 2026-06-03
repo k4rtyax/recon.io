@@ -11,6 +11,11 @@ Penggunaan:
 """
 
 import sys
+
+if sys.version_info < (3, 10):
+    sys.stderr.write("Error: Python 3.10+ is required to run recon.io due to union type hinting.\n")
+    sys.exit(1)
+
 import os
 import argparse
 

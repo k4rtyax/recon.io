@@ -198,7 +198,7 @@ TEMUAN PRIORITAS
 
     def fase_dirbrute(self):
         d = self.target_dir
-        found = self._read_head(f"{d}/dirbrute/dirb_results.txt")
+        found = self._read_head(f"{d}/dirbrute/ffuf_results.txt")
         md = f"```\n{found}\n```\n"
         self.add_section("Fase 8: Directory Bruteforce", md)
 

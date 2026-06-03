@@ -9,6 +9,9 @@ Universal web recon framework untuk bug bounty hunting.
 
 ![recon.io banner](banner.png)
 
+> [!IMPORTANT]
+> **Kebutuhan Python**: Proyek ini memerlukan **Python 3.10+** karena menggunakan fitur *union type hinting* modern (`type | None`).
+
 
 ## Penggunaan
 
@@ -108,7 +111,8 @@ Lihat `.env.example` untuk daftar lengkap variabel yang tersedia.
         │   ├── js_files.txt
         │   ├── js_endpoints.txt
         │   ├── js_secrets.txt
-        │   └── js_emails.txt
+        │   ├── js_emails.txt
+        │   └── linkfinder.txt
         ├── security/
         │   ├── all_headers.txt
         │   ├── security_analysis.txt
@@ -116,7 +120,8 @@ Lihat `.env.example` untuk daftar lengkap variabel yang tersedia.
         │   ├── insecure_cookies.txt
         │   └── nuclei_results.txt
         ├── dirbrute/
-        │   ├── dirb_results.txt
+        │   ├── ffuf_results.json
+        │   ├── ffuf_results.txt
         │   └── found_paths.txt
         └── report/
             ├── report_example.com.md
@@ -136,7 +141,12 @@ Lihat `.env.example` untuk daftar lengkap variabel yang tersedia.
 
 ```bash
 # apt
-sudo apt install nmap curl whois dnsutils wafw00f
+sudo apt install nmap curl whois dnsutils
+
+# pip (untuk wafw00f)
+pip install wafw00f
+# atau via apt jika menggunakan Kali Linux / Debian:
+# sudo apt install wafw00f
 
 # go
 go install github.com/projectdiscovery/naabu/v2/cmd/naabu@latest
@@ -174,6 +184,10 @@ Framework ini berdiri di atas berbagai *open-source tools* hebat buatan komunita
 *   **SecLists (Wordlists)**: [Daniel Miessler](https://github.com/danielmiessler/SecLists)
 
 Apresiasi besar untuk para kreator alat-alat di atas! 👏
+
+## Referensi Writeups
+
+Untuk mempelajari teknik dan studi kasus pengintaian (*recon*) tingkat lanjut, silakan baca dokumentasi [WRITEUPS_REF.md](WRITEUPS_REF.md).
 
 ## License
 

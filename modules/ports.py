@@ -123,18 +123,34 @@ def run(target: str, target_dir: str):
         )
         info("nmap top-1000 selesai")
 
-        # nmap port http
-        exec_cmd(
-            [
-                TOOLS["nmap"], "-sV", "--open",
-                "-p", "80,443,8080,8443,8000,3000,5000",
-                "--script", "http-title,http-headers,http-methods",
-                "-oN", nmap_http,
-                target,
-            ],
-            timeout=t,
-        )
-        info("nmap http scan selesai")
+        # Parse port yang terbuka dari nmap_out untuk HTTP script scan
+        ports = []
+        if os.path.exists(nmap_out):
+            pattern = re.compile(r"^(\d+)/tcp\s+open")
+            with open(nmap_out) as f:
+                for line in f:
+                    m = pattern.match(line.strip())
+                    if m:
+                        ports.append(m.group(1))
+
+        # Cek jika ada port HTTP yang terbuka untuk di-scan script
+        http_candidate_ports = {"80", "443", "8080", "8443", "8000", "3000", "5000"}
+        open_http_ports = [p for p in ports if p in http_candidate_ports]
+        if open_http_ports:
+            info(f"menjalankan Nmap HTTP scripts pada port: {', '.join(open_http_ports)}...")
+            exec_cmd(
+                [
+                    TOOLS["nmap"], "-sV", "--open",
+                    "-p", ",".join(open_http_ports),
+                    "--script", "http-title,http-headers,http-methods",
+                    "-oN", nmap_http,
+                    target,
+                ],
+                timeout=t,
+            )
+            info("nmap http scan selesai")
+        else:
+            info("tidak ada port HTTP terbuka untuk pemindaian HTTP scripts")
 
         # ekstrak open ports ke file ringkas
         _extract_open_ports(nmap_out, open_ports_file)
@@ -151,6 +167,12 @@ def _extract_open_ports(nmap_file: str, out_file: str):
             if m:
                 port, service, version = m.groups()
                 lines.append(f"{port:<20} {service:<20} {version.strip()}")
-    with open(out_file, "w") as f:
-        f.write("\n".join(lines))
+    
+    # Cek hasil dulu sebelum overwrite. Jika kosong, jangan timpa file yang ada.
+    if lines:
+        with open(out_file, "w") as f:
+            f.write("\n".join(lines) + "\n")
+    elif not os.path.exists(out_file):
+        with open(out_file, "w") as f:
+            f.write("")
 
