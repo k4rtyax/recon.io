@@ -17,6 +17,24 @@ def _load_env(path=".env"):
 
 _load_env()
 
+def _setup_path():
+    # Tambahkan path Go bin dan local python bin ke PATH environment process
+    # agar tools terdeteksi meskipun tidak ada di PATH shell non-interactive.
+    go_bin = os.path.expanduser("~/go/bin")
+    local_bin = os.path.expanduser("~/.local/bin")
+    paths_to_add = [go_bin, local_bin]
+    
+    current_path = os.environ.get("PATH", "")
+    paths = current_path.split(os.pathsep)
+    
+    for path in paths_to_add:
+        if os.path.exists(path) and path not in paths:
+            paths.insert(0, path)
+            
+    os.environ["PATH"] = os.pathsep.join(paths)
+
+_setup_path()
+
 DEFAULT_OUTPUT_DIR = os.environ.get(
     "RECON_OUTPUT_DIR",
     os.path.join(os.getcwd(), "results"),
