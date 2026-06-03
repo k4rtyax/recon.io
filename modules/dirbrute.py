@@ -38,7 +38,8 @@ def run(target: str, target_dir: str):
                 "-u", f"{url}/FUZZ",
                 "-w", wordlist,
                 "-H", f"User-Agent: {DEFAULT_USER_AGENT}",
-                "-mc", "200,201,204,301,302,307,401,403",
+                "-mc", "200,201,204,301,302,307,401",  # dihapus 403 karena sering false positive dari WAF
+                "-ac",  # auto-calibrate: otomatis deteksi & filter soft 404 / catch-all
                 "-o", ffuf_out,
                 "-of", "json",
                 "-t", "50",

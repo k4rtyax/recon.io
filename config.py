@@ -3,6 +3,20 @@ import os
 # ─── DEFAULT SETTINGS ───────────────────────────────────────────
 # Semua bisa di-override via environment variable.
 
+def _load_env(path=".env"):
+    if not os.path.exists(path):
+        return
+    with open(path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" in line:
+                key, _, val = line.partition("=")
+                os.environ.setdefault(key.strip(), val.strip())
+
+_load_env()
+
 DEFAULT_OUTPUT_DIR = os.environ.get(
     "RECON_OUTPUT_DIR",
     os.path.join(os.path.expanduser("~"), "recon-output"),
@@ -59,23 +73,33 @@ FASE_LIST = [
 ]
 
 # ─── INTERESTING URL PATTERNS ───────────────────────────────────
+# Dicocokkan sebagai path segment (/admin, /api, dll) — bukan substring.
 INTERESTING_PATTERNS = [
     "admin", "login", "upload", "api", "config", "backup",
     "debug", "test", "dev", "staging", "internal", "secret",
-    "token", "key", "password", "passwd", "auth", "oauth",
-    "graphql", "swagger", "env", "git", ".sql", ".bak", ".zip",
+    "dashboard", "panel", "manager", "console",
+    "auth", "oauth", "graphql", "swagger", "actuator",
 ]
 
 # ─── SECRET PATTERNS (regex) ────────────────────────────────────
+# Setiap pattern dirancang untuk mencocokkan format credential spesifik,
+# bukan string generik. Meminimalkan false positive.
 SECRET_PATTERNS = [
-    r"api[_-]?key\s*[=:]\s*['\"]?\w+",
-    r"secret[_-]?key\s*[=:]\s*['\"]?\w+",
-    r"password\s*[=:]\s*['\"]?\w+",
-    r"token\s*[=:]\s*['\"]?\w+",
-    r"aws[_-]?access[_-]?key",
-    r"private[_-]?key",
-    r"-----BEGIN (RSA|EC|DSA|OPENSSH) PRIVATE KEY-----",
-    r"[a-zA-Z0-9+/]{40,}={0,2}",  # base64 blobs
+    # ── API keys dengan value nyata (min 16 char setelah delimiter) ──
+    r"api[_-]?key\s*[=:]\s*['\"]?[a-zA-Z0-9_\-]{16,}",
+    r"secret[_-]?key\s*[=:]\s*['\"]?[a-zA-Z0-9_\-]{16,}",
+    # ── Password/credential dengan value dalam quotes ──
+    r"(?:password|passwd|pwd)\s*[=:]\s*['\"][^'\"]{8,}['\"]",
+    # ── Cloud provider keys (format spesifik) ──
+    r"AKIA[0-9A-Z]{16}",                                  # AWS Access Key ID
+    r"(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{36,}",        # GitHub tokens
+    r"sk-[a-zA-Z0-9]{20,}",                                # Stripe / OpenAI keys
+    r"xox[baprs]-[a-zA-Z0-9\-]{10,}",                     # Slack tokens
+    r"glpat-[A-Za-z0-9_\-]{20,}",                          # GitLab PAT
+    # ── Private keys ──
+    r"-----BEGIN (?:RSA|EC|DSA|OPENSSH|PGP) PRIVATE KEY-----",
+    # ── JWT tokens ──
+    r"eyJ[a-zA-Z0-9_-]{10,}\.eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}",
 ]
 
 # ─── SECURITY HEADERS YANG HARUS ADA ────────────────────────────

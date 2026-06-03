@@ -4,6 +4,7 @@ Menggunakan Katana untuk perayapan aktif (crawling) dan pemetaan endpoint API/JS
 """
 
 import os
+from urllib.parse import urlparse
 from core.utils import info, warn, run as exec_cmd, tool_available, read_lines, write_lines
 from config import INTERESTING_PATTERNS, TIMEOUTS, TOOLS
 
@@ -38,12 +39,9 @@ def run(target: str, target_dir: str):
     write_lines(all_file, all_urls)
     info(f"total URLs: {len(all_urls)}")
 
-    # ── filter: interesting ───────────────────────────────────────
+    # ── filter: interesting (path segment matching) ───────────────
     interesting_file = os.path.join(out, "interesting_urls.txt")
-    interesting = [
-        u for u in all_urls
-        if any(p in u.lower() for p in INTERESTING_PATTERNS)
-    ]
+    interesting = [u for u in all_urls if _is_interesting(u)]
     write_lines(interesting_file, interesting)
     info(f"interesting URLs: {len(interesting)}")
 
@@ -55,8 +53,57 @@ def run(target: str, target_dir: str):
 
     # ── filter: sensitive files ───────────────────────────────────
     sens_file = os.path.join(out, "sensitive_files.txt")
-    sens_exts = [".sql", ".bak", ".zip", ".tar", ".gz", ".env",
-                 ".git", ".log", ".conf", ".config", ".xml", ".json"]
-    sensitive = [u for u in all_urls if any(u.endswith(e) for e in sens_exts)]
+    sensitive = [u for u in all_urls if _is_sensitive(u)]
     write_lines(sens_file, sensitive)
     info(f"sensitive files: {len(sensitive)}")
+
+
+def _is_interesting(url: str) -> bool:
+    """Cocokkan pattern sebagai path segment, bukan substring.
+    /admin → match.  /latest → TIDAK match 'test'.
+    """
+    try:
+        path = urlparse(url.lower()).path
+    except Exception:
+        return False
+    for p in INTERESTING_PATTERNS:
+        # Cek apakah pattern muncul sebagai awal path segment
+        # /admin, /admin/, /admin?... semua match
+        if f"/{p}" in path:
+            return True
+    return False
+
+
+# Ekstensi file yang jelas sensitif
+_SENS_EXTS = {".sql", ".bak", ".zip", ".tar", ".gz", ".env",
+              ".log", ".conf", ".config", ".pem", ".key"}
+
+# Nama file spesifik yang berbahaya jika terekspos
+_SENS_NAMES = {
+    "package.json", "composer.json", ".git/config", ".git/HEAD",
+    "web.config", ".htaccess", ".htpasswd", ".dockerenv",
+    "wp-config.php", "database.yml", ".env.local", ".env.production",
+    "id_rsa", "id_ed25519", "shadow", "passwd",
+}
+
+
+def _is_sensitive(url: str) -> bool:
+    """Filter file sensitif berdasarkan ekstensi spesifik atau nama file berbahaya.
+    Tidak lagi match .json/.xml secara blanket — terlalu banyak false positive.
+    """
+    try:
+        path = urlparse(url.lower()).path
+    except Exception:
+        return False
+    # Cek ekstensi
+    if any(path.endswith(ext) for ext in _SENS_EXTS):
+        return True
+    # Cek nama file spesifik
+    basename = path.rsplit("/", 1)[-1] if "/" in path else path
+    if basename in _SENS_NAMES:
+        return True
+    # Cek path fragments yang berbahaya
+    if "/.git/" in path or path.endswith("/.git"):
+        return True
+    return False
+

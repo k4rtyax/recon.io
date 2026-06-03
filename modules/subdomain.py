@@ -77,14 +77,40 @@ def run(target: str, target_dir: str):
 
     # ── 4. httpx (Cek Keaktifan Web) ───────────────────────────────
     if tool_available(TOOLS["httpx"]) and os.path.exists(all_file):
+        httpx_json = os.path.join(out, "httpx_alive.json")
+        alive_info = os.path.join(out, "alive_subdomains_info.txt")
         exec_cmd(
             [
                 TOOLS["httpx"], "-l", all_file,
                 "-silent", "-title", "-status-code", "-tech-detect",
-                "-o", alive_file,
+                "-json", "-o", httpx_json,
             ],
             timeout=t,
         )
-        info("httpx probe selesai")
+        
+        # Parse JSON untuk pisahkan clean domain & metadata
+        clean_domains = []
+        info_lines = []
+        if os.path.exists(httpx_json):
+            import json
+            with open(httpx_json) as f:
+                for line in f:
+                    if not line.strip():
+                        continue
+                    try:
+                        data = json.loads(line)
+                        url = data.get("url", "")
+                        if url:
+                            clean_domains.append(url)
+                            status = data.get("status_code", 0)
+                            title = data.get("title", "")
+                            tech = ",".join(data.get("tech", []))
+                            info_lines.append(f"{url} [{status}] [{title}] [{tech}]")
+                    except Exception:
+                        pass
+        
+        write_lines(alive_file, clean_domains)
+        write_lines(alive_info, info_lines)
+        info(f"httpx probe selesai, alive: {len(clean_domains)}")
     else:
         warn("httpx tidak ditemukan, alive check dilewati")

@@ -136,7 +136,13 @@ TEMUAN PRIORITAS
 
     def fase_subdomain(self):
         d = self.target_dir
-        alive = self._read_head(f"{d}/subdomain/alive_subdomains.txt")
+        # Gunakan info file jika ada, fallback ke clean domain file
+        info_file = f"{d}/subdomain/alive_subdomains_info.txt"
+        if os.path.exists(info_file) and _count(info_file) > 0:
+            alive = self._read_head(info_file)
+        else:
+            alive = self._read_head(f"{d}/subdomain/alive_subdomains.txt")
+            
         md  = f"**Alive subdomains**\n\n```\n{alive}\n```\n"
         self.add_section("Fase 1: Subdomain Enumeration", md)
 
