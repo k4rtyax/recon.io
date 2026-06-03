@@ -52,7 +52,6 @@ def run(target: str, target_dir: str):
         return
 
     warn("ffuf tidak ditemukan, dirbrute dilewati")
-    warn("install: go install github.com/ffuf/ffuf/v2@latest")
 
 
 def _parse_ffuf_results(json_file: str, txt_file: str, out_dir: str):

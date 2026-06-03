@@ -94,4 +94,3 @@ def run(target: str, target_dir: str):
         info("nuclei selesai")
     else:
         warn("nuclei tidak ditemukan, dilewati")
-        warn("install: go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest")

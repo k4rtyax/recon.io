@@ -23,7 +23,6 @@ def run(target: str, target_dir: str):
         info("subfinder selesai")
     else:
         warn("subfinder tidak ditemukan, subdomain enumeration dilewati")
-        warn("install: go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest")
         return
 
     # ── 2. alterx & dnsx (Pembuatan Permutasi & Resolusi DNS) ──────
@@ -58,10 +57,8 @@ def run(target: str, target_dir: str):
     else:
         if not alterx_available:
             warn("alterx tidak ditemukan, melewati tahap permutasi")
-            warn("install: go install github.com/projectdiscovery/alterx/cmd/alterx@latest")
         if not dnsx_available:
             warn("dnsx tidak ditemukan, melewati tahap resolusi DNS aktif")
-            warn("install: go install github.com/projectdiscovery/dnsx/cmd/dnsx@latest")
 
     # ── 3. Penggabungan & Deduplikasi ──────────────────────────────
     subdomains = []

@@ -1,6 +1,6 @@
 """
 Runner — orkestrasi semua fase recon untuk satu target.
-Mendukung checkpoint/resume dan pemilihan fase tertentu.
+Mendukung pemilihan fase tertentu.
 """
 
 import os

@@ -14,7 +14,6 @@ def run(target: str, target_dir: str):
 
     if not tool_available("dig"):
         warn("dig tidak ditemukan, fase DNS dilewati")
-        warn("install: sudo apt install dnsutils")
         return
 
     # ── whois ────────────────────────────────────────────────────

@@ -28,7 +28,6 @@ def run(target: str, target_dir: str):
         info("katana crawling selesai")
     else:
         warn("katana tidak ditemukan, URL gathering dilewati")
-        warn("install: go install github.com/projectdiscovery/katana/cmd/katana@latest")
         return
 
     # ── ambil & deduplikat hasil ───────────────────────────────────
