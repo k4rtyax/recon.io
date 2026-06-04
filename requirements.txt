@@ -1,4 +1,1 @@
-# recon.io — no external Python dependencies required.
-# All modules use Python stdlib only.
-# External CLI tools (subfinder, nmap, httpx, etc.) are listed in README.md.
-# Requires Python 3.10+ (due to union type hinting syntax: Type | None)
+rich>=13.0.0

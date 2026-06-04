@@ -5,14 +5,32 @@ Menggunakan ffuf (modern Go-based fuzzer) sebagai default utama.
 
 import os
 import json
+import urllib.request
 from core.utils import info, warn, run as exec_cmd, tool_available, get_working_url
 from config import DEFAULT_USER_AGENT, TIMEOUTS, TOOLS, WORDLIST_PATHS
+
+_WORDLIST_URL     = "https://raw.githubusercontent.com/v0re/dirb/master/wordlists/common.txt"
+_WORDLIST_BUNDLED = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "wordlists", "common.txt")
 
 
 def _find_wordlist() -> str | None:
     for path in WORDLIST_PATHS:
         if path and os.path.exists(path) and os.path.getsize(path) > 0:
             return path
+    return _download_wordlist()
+
+
+def _download_wordlist() -> str | None:
+    """Download wordlist fallback ke wordlists/common.txt jika tidak ada di sistem."""
+    os.makedirs(os.path.dirname(_WORDLIST_BUNDLED), exist_ok=True)
+    info("wordlist tidak ditemukan, mengunduh fallback...")
+    try:
+        urllib.request.urlretrieve(_WORDLIST_URL, _WORDLIST_BUNDLED)
+        if os.path.getsize(_WORDLIST_BUNDLED) > 0:
+            info(f"wordlist diunduh ke: {_WORDLIST_BUNDLED}")
+            return _WORDLIST_BUNDLED
+    except Exception as e:
+        warn(f"gagal mengunduh wordlist: {e}")
     return None
 
 

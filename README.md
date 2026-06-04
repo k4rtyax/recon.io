@@ -144,18 +144,30 @@ Lihat `.env.example` untuk daftar lengkap variabel yang tersedia.
 - **Configurable** — semua setting bisa di-override via environment variable
 - **Universal** — tidak terikat ke target atau sistem tertentu
 
-## Instalasi tools
+## Instalasi
 
-Untuk menginstal semua dependensi sistem, Python, Go, beserta tools pendukungnya secara otomatis, jalankan skrip instalasi berikut:
+### 1. Install dependensi Python
 
 ```bash
-# 1. Berikan izin eksekusi pada skrip install.sh
-chmod +x install.sh
+pip install -r requirements.txt
+```
 
-# 2. Jalankan skrip instalasi
-./install.sh
+### 2. Install semua tools recon
 
-# 3. Muat ulang konfigurasi shell Anda
+Pilih sesuai OS:
+
+```bash
+# Linux (Kali, Ubuntu, Debian)
+chmod +x install.sh && ./install.sh
+
+# macOS
+chmod +x install-mac.sh && ./install-mac.sh
+```
+
+Script ini menginstall: nmap, subfinder, httpx, nuclei, ffuf, katana, dan tools lainnya secara otomatis. Wordlist juga diunduh otomatis jika belum ada di sistem.
+
+```bash
+# 3. Muat ulang konfigurasi shell
 source ~/.bashrc  # atau source ~/.zshrc
 ```
 
