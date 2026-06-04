@@ -1,7 +1,7 @@
 """
 Fase: Parameter Discovery
 Gunakan arjun untuk menemukan hidden parameter di endpoint penting.
-Input: urls/idor_hint.txt + urls/exposed_tool.txt + urls/params_urls.txt
+Input: idor_hint, exposed_tool, params_urls, ssrf_prone, path_traversal (dari fase urls)
 """
 
 import os
@@ -72,7 +72,6 @@ def run(target: str, target_dir: str):
         except Exception as e:
             warn(f"gagal parse hasil arjun: {e}")
 
-    # Fallback: stdout jika JSON kosong
     if not all_results and stdout.strip():
         all_results = [l for l in stdout.splitlines() if l.strip()]
 

@@ -44,7 +44,7 @@ def run(target: str, target_dir: str):
     # ── headers via curl ─────────────────────────────────────────
     hdr_out = os.path.join(out, "headers.txt")
     code, stdout, _ = exec_cmd(
-        ["curl", "-sI", "-L", "-A", DEFAULT_USER_AGENT,
+        [TOOLS["curl"], "-sI", "-L", "-A", DEFAULT_USER_AGENT,
          "--max-time", "15", url],
         timeout=t,
     )

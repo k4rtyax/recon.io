@@ -79,7 +79,7 @@ def run(target: str, target_dir: str):
     # ── download & analisis tiap file JS (paralel) ───────────────
     def _fetch_and_parse(js_url: str):
         code, content, _ = exec_cmd(
-            ["curl", "-sfL", "-A", DEFAULT_USER_AGENT, "--max-time", "15", js_url],
+            [TOOLS["curl"], "-sfL", "-A", DEFAULT_USER_AGENT, "--max-time", "15", js_url],
             timeout=t,
         )
         if code != 0 or not content:

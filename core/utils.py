@@ -6,6 +6,7 @@ from rich.console import Console
 from rich.theme import Theme
 from rich.panel import Panel
 from rich.text import Text
+from config import TOOLS
 
 # Inisialisasi rich console
 console = Console(
@@ -131,7 +132,7 @@ def get_working_url(target: str, timeout: int = 5) -> str:
     if target in _url_cache:
         return _url_cache[target]
     code, stdout, _ = run(
-        ["curl", "-sI", "-L", "--max-time", str(timeout), f"https://{target}"],
+        [TOOLS["curl"], "-sI", "-L", "--max-time", str(timeout), f"https://{target}"],
         timeout=timeout + 2,
     )
     result = f"https://{target}" if code == 0 and stdout.strip() else f"http://{target}"

@@ -82,6 +82,10 @@ TOOLS = {
     "waybackurls":  os.environ.get("RECON_TOOL_WAYBACKURLS", "waybackurls"),
     "arjun":        os.environ.get("RECON_TOOL_ARJUN",       "arjun"),
     "subzy":        os.environ.get("RECON_TOOL_SUBZY",       "subzy"),
+    # System tools
+    "curl":         os.environ.get("RECON_TOOL_CURL",        "curl"),
+    "dig":          os.environ.get("RECON_TOOL_DIG",         "dig"),
+    "whois":        os.environ.get("RECON_TOOL_WHOIS",       "whois"),
 }
 
 # ─── FASE MAPPING ───────────────────────────────────────────────

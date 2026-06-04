@@ -14,7 +14,7 @@ def run(target: str, target_dir: str):
 
     # ── ambil headers via curl ────────────────────────────────────
     code, stdout, _ = exec_cmd(
-        ["curl", "-sI", "-L", "-A", DEFAULT_USER_AGENT, "--max-time", "15", url],
+        [TOOLS["curl"], "-sI", "-L", "-A", DEFAULT_USER_AGENT, "--max-time", "15", url],
         timeout=t,
     )
 
@@ -123,7 +123,7 @@ def _check_cors(url: str, out_file: str, timeout: int):
     for origin in test_origins:
         code, stdout, _ = exec_cmd(
             [
-                "curl", "-sI", "-A", "Mozilla/5.0",
+                TOOLS["curl"], "-sI", "-A", "Mozilla/5.0",
                 "-H", f"Origin: {origin}",
                 "--max-time", "10", url,
             ],
