@@ -22,8 +22,6 @@ brew update &>/dev/null
 
 echo "[*] Install tools sistem (nmap, curl, whois, git)..."
 brew install nmap curl whois git &>/dev/null
-# dnsutils (dig, nslookup) sudah built-in di macOS — tidak perlu install
-
 # ── Go ──────────────────────────────────────────────────────────────
 if ! command -v go &>/dev/null; then
     echo "[!] Go tidak ditemukan. Install via Homebrew..."
