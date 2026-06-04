@@ -16,7 +16,7 @@ def run(target: str, target_dir: str):
     alive_file = os.path.join(out, "alive_subdomains.txt")
     t = TIMEOUTS["subdomain"]
 
-    # ── 1. subfinder (Pencarian Pasif) ────────────────────────────
+    # ── 1a. subfinder (Pencarian Pasif) ──────────────────────────
     sf_out = os.path.join(out, "subfinder.txt")
     if tool_available(TOOLS["subfinder"]):
         exec_cmd([TOOLS["subfinder"], "-d", target, "-silent", "-o", sf_out], timeout=t)
@@ -24,6 +24,17 @@ def run(target: str, target_dir: str):
     else:
         warn("subfinder tidak ditemukan, subdomain enumeration dilewati")
         return
+
+    # ── 1b. amass (Pasif + ASN Discovery) ────────────────────────
+    amass_out = os.path.join(out, "amass.txt")
+    if tool_available(TOOLS["amass"]):
+        exec_cmd(
+            [TOOLS["amass"], "enum", "-passive", "-d", target, "-o", amass_out, "-silent"],
+            timeout=t,
+        )
+        info("amass selesai")
+    else:
+        warn("amass tidak ditemukan, ASN discovery dilewati")
 
     # ── 2. alterx & dnsx (Pembuatan Permutasi & Resolusi DNS) ──────
     alterx_available = tool_available(TOOLS["alterx"])
@@ -62,14 +73,10 @@ def run(target: str, target_dir: str):
 
     # ── 3. Penggabungan & Deduplikasi ──────────────────────────────
     subdomains = []
-    
-    # Ambil hasil pasif subfinder
-    if os.path.exists(sf_out):
-        subdomains += read_lines(sf_out)
-        
-    # Ambil hasil aktif permutasi (jika ada)
-    if os.path.exists(resolved_file):
-        subdomains += read_lines(resolved_file)
+
+    for src in [sf_out, amass_out, resolved_file]:
+        if os.path.exists(src):
+            subdomains += read_lines(src)
 
     subdomains = sorted(set(subdomains))
     write_lines(all_file, subdomains)

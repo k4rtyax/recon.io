@@ -202,6 +202,12 @@ TEMUAN PRIORITAS
             
         self.add_section("Fase 7: Security Headers & Vuln Scan", md)
 
+    def fase_params(self):
+        d = self.target_dir
+        params  = self._read_head(f"{d}/params/discovered_params.txt")
+        md = f"**Hidden parameters ditemukan**\n\n```\n{params}\n```\n"
+        self.add_section("Fase 7b: Parameter Discovery", md)
+
     def fase_dirbrute(self):
         d = self.target_dir
         found = self._read_head(f"{d}/dirbrute/ffuf_results.txt")

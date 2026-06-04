@@ -12,14 +12,15 @@ from core import utils
 from core.utils import info, ok, warn, err, section, console
 from rich.progress import Progress, TextColumn, BarColumn, MofNCompleteColumn, TimeElapsedColumn
 
-import modules.subdomain  as mod_subdomain
-import modules.dns        as mod_dns
-import modules.ports      as mod_ports
+import modules.subdomain   as mod_subdomain
+import modules.dns         as mod_dns
+import modules.ports       as mod_ports
 import modules.fingerprint as mod_fingerprint
-import modules.urls       as mod_urls
-import modules.js         as mod_js
-import modules.security   as mod_security
-import modules.dirbrute   as mod_dirbrute
+import modules.urls        as mod_urls
+import modules.js          as mod_js
+import modules.params      as mod_params
+import modules.security    as mod_security
+import modules.dirbrute    as mod_dirbrute
 
 
 FASE_MAP = {
@@ -29,6 +30,7 @@ FASE_MAP = {
     "fingerprint": mod_fingerprint,
     "urls":        mod_urls,
     "js":          mod_js,
+    "params":      mod_params,
     "security":    mod_security,
     "dirbrute":    mod_dirbrute,
 }
