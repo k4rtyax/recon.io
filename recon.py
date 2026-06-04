@@ -250,7 +250,7 @@ def main():
     elif args.A:
         fases = ["subdomain", "dns", "ports"]
     else:
-        fases = FASE_LIST
+        fases = list(FASE_LIST)
 
     # ── tentukan target(s) ───────────────────────────────────────
     if args.domain:

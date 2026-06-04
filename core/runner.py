@@ -166,10 +166,6 @@ def run_target(
             return
 
     report       = Report(target, target_dir)
-    # load data fase yang di-skip agar report tetap lengkap
-    for fase in skipped:
-        _add_to_report(report, fase)
-
     waves        = _get_waves(fases)
     total        = len(fases)
     done_fases: list[str] = []
@@ -208,9 +204,12 @@ def run_target(
                             done_fases.append(fase)
                         progress.advance(task_id)
 
-    # tambah ke report dalam urutan FASE_LIST, bukan urutan selesai
+    # tambah ke report dalam urutan FASE_LIST, bukan urutan selesai.
+    # gabungkan fase yang di-skip (resume) dengan yang baru jalan agar
+    # report tetap lengkap DAN urutannya benar.
+    report_fases = set(skipped) | set(done_fases)
     for fase in FASE_LIST:
-        if fase in done_fases:
+        if fase in report_fases:
             _add_to_report(report, fase)
 
     done_c  = len(done_fases)
