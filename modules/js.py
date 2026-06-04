@@ -10,7 +10,9 @@ from urllib.parse import urlparse
 from core.utils import info, warn, run as exec_cmd, read_lines, write_lines, tool_available, get_working_url
 from config import SECRET_PATTERNS, DEFAULT_USER_AGENT, TIMEOUTS, TOOLS
 
+import os as _os
 _JS_WORKERS = 10
+_JS_LIMIT   = int(_os.environ.get("RECON_JS_LIMIT", "50"))
 
 
 def run(target: str, target_dir: str):
@@ -60,6 +62,9 @@ def run(target: str, target_dir: str):
     write_lines(js_urls_file, js_urls)
     info(f"JS files ditemukan: {len(js_urls)}")
 
+    if len(js_urls) > _JS_LIMIT:
+        warn(f"JS files melebihi limit ({len(js_urls)}), hanya {_JS_LIMIT} pertama yang dianalisis — set RECON_JS_LIMIT untuk override")
+
     endpoints_all = []
     secrets_all   = []
     emails_all    = []
@@ -89,7 +94,7 @@ def run(target: str, target_dir: str):
         return eps, ems, secs
 
     with ThreadPoolExecutor(max_workers=_JS_WORKERS) as executor:
-        futures = {executor.submit(_fetch_and_parse, u): u for u in js_urls[:50]}
+        futures = {executor.submit(_fetch_and_parse, u): u for u in js_urls[:_JS_LIMIT]}
         for future in as_completed(futures):
             eps, ems, secs = future.result()
             endpoints_all.extend(eps)

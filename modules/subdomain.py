@@ -113,8 +113,8 @@ def run(target: str, target_dir: str):
                             tech_list = data.get("technologies") or data.get("tech") or []
                             tech = ",".join(tech_list)
                             info_lines.append(f"{url} [{status}] [{title}] [{tech}]")
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        warn(f"gagal parse baris httpx JSON: {e}")
         
         write_lines(alive_file, clean_domains)
         write_lines(alive_info, info_lines)
