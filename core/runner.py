@@ -9,7 +9,6 @@ Urutan eksekusi:
 """
 
 import os
-import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
@@ -96,14 +95,10 @@ def _run_fase(
     fase: str,
     target: str,
     target_dir: str,
-    report: Report,
-    report_lock: threading.Lock,
 ) -> bool:
     mod = FASE_MAP[fase]
     try:
         mod.run(target, target_dir)
-        with report_lock:
-            _add_to_report(report, fase)
         ok(f"fase {fase} selesai")
         return True
     except Exception as exc:
@@ -160,20 +155,24 @@ def run_target(
     _setup_dirs(target_dir, fases)
 
     # filter fase yang sudah punya output jika --resume
+    skipped: list[str] = []
     if resume:
         skipped = [f for f in fases if _fase_done(target_dir, f)]
         if skipped:
-            info(f"resume: melewati {len(skipped)} fase yang sudah selesai: {', '.join(skipped)}")
-        fases = [f for f in fases if not _fase_done(target_dir, f)]
+            info(f"resume: melewati {len(skipped)} fase: {', '.join(skipped)}")
+        fases = [f for f in fases if f not in skipped]
         if not fases:
             info("semua fase sudah selesai, tidak ada yang perlu dijalankan")
             return
 
-    report      = Report(target, target_dir)
-    report_lock = threading.Lock()
-    waves       = _get_waves(fases)
-    total       = len(fases)
-    done_c      = 0
+    report       = Report(target, target_dir)
+    # load data fase yang di-skip agar report tetap lengkap
+    for fase in skipped:
+        _add_to_report(report, fase)
+
+    waves        = _get_waves(fases)
+    total        = len(fases)
+    done_fases: list[str] = []
 
     section(f"target: {target}")
     info(f"output : {target_dir}")
@@ -192,24 +191,29 @@ def run_target(
             if len(wave) == 1:
                 fase = wave[0]
                 progress.update(task_id, description=f"fase: {fase}")
-                if _run_fase(fase, target, target_dir, report, report_lock):
-                    done_c += 1
+                if _run_fase(fase, target, target_dir):
+                    done_fases.append(fase)
                 progress.advance(task_id)
             else:
                 info(f"menjalankan {len(wave)} fase paralel: {', '.join(wave)}")
                 progress.update(task_id, description=f"paralel ({len(wave)} fase)")
                 with ThreadPoolExecutor(max_workers=len(wave)) as executor:
                     future_to_fase = {
-                        executor.submit(
-                            _run_fase, f, target, target_dir, report, report_lock
-                        ): f
+                        executor.submit(_run_fase, f, target, target_dir): f
                         for f in wave
                     }
                     for future in as_completed(future_to_fase):
+                        fase = future_to_fase[future]
                         if future.result():
-                            done_c += 1
+                            done_fases.append(fase)
                         progress.advance(task_id)
 
+    # tambah ke report dalam urutan FASE_LIST, bukan urutan selesai
+    for fase in FASE_LIST:
+        if fase in done_fases:
+            _add_to_report(report, fase)
+
+    done_c  = len(done_fases)
     md_path, txt_path = report.save()
     _print_summary(report)
 
