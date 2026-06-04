@@ -26,7 +26,6 @@ def run(target: str, target_dir: str):
 
     if not wordlist:
         warn("wordlist tidak ditemukan, dirbrute dilewati")
-        warn("set env: RECON_WORDLIST=/path/to/wordlist.txt")
         return
 
     # ── Gunakan ffuf sebagai alat utama ───────────────────────────

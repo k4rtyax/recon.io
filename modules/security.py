@@ -155,8 +155,8 @@ def _check_cors(url: str, out_file: str, timeout: int):
     if findings:
         write_lines(out_file, findings)
         info(f"CORS issues ditemukan: {len(findings)}")
-        for f in findings:
-            warn(f)
+        for finding in findings:
+            warn(finding)
     else:
         write_lines(out_file, ["no cors issues found"])
         info("CORS: tidak ada misconfiguration terdeteksi")

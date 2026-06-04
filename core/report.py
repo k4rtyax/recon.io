@@ -45,25 +45,40 @@ class Report:
     def _build_summary(self) -> tuple[str, str]:
         d = self.target_dir
 
-        alive_sub   = _count(f"{d}/subdomain/alive_subdomains.txt")
-        total_sub   = _count(f"{d}/subdomain/all_subdomains.txt")
-        open_ports  = _count(f"{d}/ports/open_ports.txt")
-        interesting = _count(f"{d}/urls/interesting_urls.txt")
-        params      = _count(f"{d}/urls/params_urls.txt")
-        js_ep       = _count(f"{d}/js/js_endpoints.txt")
-        secrets     = _count(f"{d}/js/js_secrets.txt")
-        missing_hdrs= _count(f"{d}/security/missing_headers.txt")
-        cookies_bad = _count(f"{d}/security/insecure_cookies.txt")
-        total_urls  = _count(f"{d}/urls/all_urls.txt")
+        alive_sub    = _count(f"{d}/subdomain/alive_subdomains.txt")
+        total_sub    = _count(f"{d}/subdomain/all_subdomains.txt")
+        open_ports   = _count(f"{d}/ports/open_ports.txt")
+        total_urls   = _count(f"{d}/urls/all_urls.txt")
+        categorized  = _count(f"{d}/urls/categorized.txt")
+        params_urls  = _count(f"{d}/urls/params_urls.txt")
+        js_ep        = _count(f"{d}/js/js_endpoints.txt")
+        secrets      = _count(f"{d}/js/js_secrets.txt")
+        missing_hdrs = _count(f"{d}/security/missing_headers.txt")
+        cookies_bad  = _count(f"{d}/security/insecure_cookies.txt")
+        takeover     = _count(f"{d}/security/takeover.txt")
+        disc_params  = _count(f"{d}/params/discovered_params.txt")
+
+        # Cek CORS — hanya hitung jika ada temuan nyata (bukan "no cors issues found")
+        cors_findings = 0
+        cors_file = f"{d}/security/cors_results.txt"
+        if os.path.exists(cors_file):
+            lines = [l for l in open(cors_file).read().splitlines() if l.strip() and "no cors" not in l.lower()]
+            cors_findings = len(lines)
 
         # tentukan prioritas temuan
         findings = []
         if secrets > 0:
             findings.append(f"[!] Potential secrets ditemukan : {secrets}")
-        if params > 0:
-            findings.append(f"[!] URL dengan parameter        : {params}")
-        if interesting > 0:
-            findings.append(f"[!] Interesting URLs            : {interesting}")
+        if takeover > 0:
+            findings.append(f"[!] Subdomain takeover candidate: {takeover}")
+        if cors_findings > 0:
+            findings.append(f"[!] CORS misconfiguration       : {cors_findings}")
+        if disc_params > 0:
+            findings.append(f"[!] Hidden params ditemukan     : {disc_params}")
+        if categorized > 0:
+            findings.append(f"[i] URL terkategorisasi         : {categorized}")
+        if params_urls > 0:
+            findings.append(f"[i] URL berparameter            : {params_urls}")
         if js_ep > 0:
             findings.append(f"[i] JS endpoints                : {js_ep}")
         if missing_hdrs > 0:
@@ -88,10 +103,13 @@ class Report:
 | Subdomain aktif | {alive_sub} |
 | Open ports | {open_ports} |
 | Total URLs | {total_urls} |
-| Interesting URLs | {interesting} |
-| URL berparameter | {params} |
+| URL terkategorisasi | {categorized} |
+| URL berparameter | {params_urls} |
 | JS endpoints | {js_ep} |
 | Potential secrets | {secrets} |
+| Hidden params | {disc_params} |
+| Takeover candidates | {takeover} |
+| CORS issues | {cors_findings} |
 | Missing headers | {missing_hdrs} |
 | Insecure cookies | {cookies_bad} |
 
@@ -119,10 +137,13 @@ RINGKASAN METRIK
   Subdomain aktif     : {alive_sub}
   Open ports          : {open_ports}
   Total URLs          : {total_urls}
-  Interesting URLs    : {interesting}
-  URL berparameter    : {params}
+  URL terkategorisasi : {categorized}
+  URL berparameter    : {params_urls}
   JS endpoints        : {js_ep}
   Potential secrets   : {secrets}
+  Hidden params       : {disc_params}
+  Takeover candidates : {takeover}
+  CORS issues         : {cors_findings}
   Missing headers     : {missing_hdrs}
   Insecure cookies    : {cookies_bad}
 
@@ -167,11 +188,13 @@ TEMUAN PRIORITAS
 
     def fase_urls(self):
         d = self.target_dir
-        interesting = self._read_head(f"{d}/urls/interesting_urls.txt")
+        categorized = self._read_head(f"{d}/urls/categorized.txt", 40)
         params      = self._read_head(f"{d}/urls/params_urls.txt")
+        sensitive   = self._read_head(f"{d}/urls/sensitive_files.txt", 20)
         md = (
-            f"**Interesting URLs**\n\n```\n{interesting}\n```\n\n"
-            f"**URLs berparameter**\n\n```\n{params}\n```\n"
+            f"**URL terkategorisasi**\n\n```\n{categorized}\n```\n\n"
+            f"**URLs berparameter**\n\n```\n{params}\n```\n\n"
+            f"**File sensitif**\n\n```\n{sensitive}\n```\n"
         )
         self.add_section("Fase 5: URL Gathering", md)
 
@@ -189,17 +212,27 @@ TEMUAN PRIORITAS
         d = self.target_dir
         missing  = self._read_head(f"{d}/security/missing_headers.txt")
         cookies  = self._read_head(f"{d}/security/insecure_cookies.txt")
-        nuclei_file = f"{d}/security/nuclei_results.txt"
-        
+
         md = (
             f"**Missing security headers**\n\n```\n{missing}\n```\n\n"
             f"**Insecure cookies**\n\n```\n{cookies}\n```\n"
         )
-        
+
+        nuclei_file = f"{d}/security/nuclei_results.txt"
         if os.path.exists(nuclei_file):
             vulns = self._read_head(nuclei_file, 50)
             md += f"\n**Vulnerabilities (Nuclei)**\n\n```\n{vulns}\n```\n"
-            
+
+        takeover_file = f"{d}/security/takeover.txt"
+        if os.path.exists(takeover_file):
+            takeover = self._read_head(takeover_file, 20)
+            md += f"\n**Subdomain Takeover candidates**\n\n```\n{takeover}\n```\n"
+
+        cors_file = f"{d}/security/cors_results.txt"
+        if os.path.exists(cors_file):
+            cors = self._read_head(cors_file, 20)
+            md += f"\n**CORS Misconfiguration**\n\n```\n{cors}\n```\n"
+
         self.add_section("Fase 7: Security Headers & Vuln Scan", md)
 
     def fase_params(self):
