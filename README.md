@@ -39,20 +39,23 @@ recon -d example.com -A
 | `-o DIR`      | folder output (default: ./results)         |
 | `-A`          | jalankan fase pemetaan jaringan dasar saja (subdomain, dns, ports) |
 | `--fase FASE` | pilih fase tertentu, pisah koma            |
+| `--recon-subs`| enumerasi subdomain dulu, lalu recon tiap subdomain aktif (hanya dengan `-d`) |
 | `--list-fase` | tampilkan daftar fase                      |
+| `--check`     | cek status semua tools lalu keluar         |
 
 ## Fase
 
 | #   | Fase        | Tools                                |
 | --- | ----------- | ------------------------------------ |
-| 1   | subdomain   | subfinder, alterx, dnsx, httpx       |
-| 2   | dns         | whois, dig                           |
-| 3   | ports       | naabu, nmap                          |
-| 4   | fingerprint | httpx, wafw00f, curl                 |
-| 5   | urls        | katana                               |
-| 6   | js          | curl + regex (linkfinder jika ada)   |
-| 7   | security    | curl, nuclei                         |
-| 8   | dirbrute    | ffuf                                 |
+| 1   | subdomain   | subfinder, amass, alterx, dnsx, httpx |
+| 2   | dns         | whois, dig, dnsx                      |
+| 3   | ports       | naabu, nmap                           |
+| 4   | fingerprint | httpx, wafw00f, curl                  |
+| 5   | urls        | katana, gau/waybackurls               |
+| 6   | js          | curl + regex (linkfinder jika ada)    |
+| 7   | params      | arjun                                 |
+| 8   | security    | curl, nuclei, subzy (takeover), CORS  |
+| 9   | dirbrute    | ffuf                                  |
 
 ## Konfigurasi
 
@@ -76,7 +79,7 @@ Lihat `.env.example` untuk daftar lengkap variabel yang tersedia.
 | `RECON_OUTPUT_DIR`      | `./results`      | folder output             |
 | `RECON_TIMEOUT`         | `300`            | timeout global (detik)    |
 | `RECON_TIMEOUT_<FASE>`  | bervariasi       | timeout per fase          |
-| `RECON_THREADS`         | `10`             | jumlah thread             |
+| `RECON_JS_LIMIT`        | `50`             | maks file JS dianalisis   |
 | `RECON_USER_AGENT`      | Chrome UA        | user agent string         |
 | `RECON_TOOL_<NAME>`     | nama tool        | path ke binary tool       |
 | `RECON_WORDLIST`        | auto-detect      | path ke wordlist dirbrute |
@@ -89,6 +92,7 @@ Lihat `.env.example` untuk daftar lengkap variabel yang tersedia.
     └── recon_03_06_2026/
         ├── subdomain/
         │   ├── subfinder.txt
+        │   ├── amass.txt
         │   ├── alterx_permutations.txt
         │   ├── resolved_permutations.txt
         │   ├── all_subdomains.txt
@@ -111,22 +115,34 @@ Lihat `.env.example` untuk daftar lengkap variabel yang tersedia.
         │   └── tech_stack.txt
         ├── urls/
         │   ├── katana.txt
+        │   ├── gau.txt
         │   ├── all_urls.txt
-        │   ├── interesting_urls.txt
         │   ├── params_urls.txt
-        │   └── sensitive_files.txt
+        │   ├── sensitive_files.txt
+        │   ├── categorized.txt
+        │   ├── ssrf_prone.txt
+        │   ├── idor_hint.txt
+        │   ├── old_version.txt
+        │   ├── exposed_tool.txt
+        │   └── path_traversal.txt
         ├── js/
         │   ├── js_files.txt
         │   ├── js_endpoints.txt
         │   ├── js_secrets.txt
         │   ├── js_emails.txt
         │   └── linkfinder.txt
+        ├── params/
+        │   ├── endpoints_input.txt
+        │   ├── arjun_results.json
+        │   └── discovered_params.txt
         ├── security/
         │   ├── all_headers.txt
         │   ├── security_analysis.txt
         │   ├── missing_headers.txt
         │   ├── insecure_cookies.txt
-        │   └── nuclei_results.txt
+        │   ├── nuclei_results.txt
+        │   ├── takeover.txt
+        │   └── cors_results.txt
         ├── dirbrute/
         │   ├── ffuf_results.json
         │   ├── ffuf_results.txt
@@ -177,6 +193,7 @@ source ~/.bashrc  # atau source ~/.zshrc
 Framework ini berdiri di atas berbagai *open-source tools* hebat buatan komunitas *security research*. Berikut daftar tools yang dipanggil oleh recon.io beserta link referensinya:
 
 *   **Subfinder**: [ProjectDiscovery](https://github.com/projectdiscovery/subfinder)
+*   **Amass**: [OWASP](https://github.com/owasp-amass/amass)
 *   **AlterX**: [ProjectDiscovery](https://github.com/projectdiscovery/alterx)
 *   **Dnsx**: [ProjectDiscovery](https://github.com/projectdiscovery/dnsx)
 *   **Httpx**: [ProjectDiscovery](https://github.com/projectdiscovery/httpx)
@@ -184,7 +201,11 @@ Framework ini berdiri di atas berbagai *open-source tools* hebat buatan komunita
 *   **Naabu**: [ProjectDiscovery](https://github.com/projectdiscovery/naabu)
 *   **Wafw00f**: [EnableSecurity](https://github.com/EnableSecurity/wafw00f)
 *   **Katana**: [ProjectDiscovery](https://github.com/projectdiscovery/katana)
+*   **Gau**: [lc](https://github.com/lc/gau)
+*   **Waybackurls**: [tomnomnom](https://github.com/tomnomnom/waybackurls)
 *   **Nuclei**: [ProjectDiscovery](https://github.com/projectdiscovery/nuclei)
+*   **Arjun**: [s0md3v](https://github.com/s0md3v/Arjun)
+*   **Subzy**: [PentestPad](https://github.com/PentestPad/subzy)
 *   **Ffuf**: [Ffuf](https://github.com/ffuf/ffuf)
 *   **SecLists (Wordlists)**: [Daniel Miessler](https://github.com/danielmiessler/SecLists)
 

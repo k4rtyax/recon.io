@@ -100,7 +100,7 @@ def parse_args():
     parser.add_argument(
         "--version",
         action="version",
-        version="recon.io 1.5",
+        version="recon.io 2.0",
     )
 
     args = parser.parse_args()
