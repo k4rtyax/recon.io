@@ -81,6 +81,17 @@ def parse_args():
         help="tampilkan daftar fase yang tersedia lalu keluar",
     )
     parser.add_argument(
+        "--recon-subs",
+        action="store_true",
+        dest="recon_subs",
+        help=(
+            "enumerasi subdomain dulu di root domain, lalu jalankan recon\n"
+            "pada tiap subdomain aktif yang ditemukan\n"
+            "gunakan --fase untuk pilih fase yang dijalankan per subdomain\n"
+            "contoh: -d example.com --recon-subs --fase urls,js,security"
+        ),
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version="recon.io 1.5",
@@ -89,6 +100,8 @@ def parse_args():
     args = parser.parse_args()
     if not args.list_fase and not (args.domain or args.subdomain or args.file):
         parser.error("one of the arguments -d/--domain -s/--subdomain -f/--file is required")
+    if args.recon_subs and not args.domain:
+        parser.error("--recon-subs hanya bisa digunakan dengan -d/--domain")
     return args
 
 
@@ -100,10 +113,33 @@ contoh penggunaan:
   python recon.py -f targets.txt -o ~/hasil
   python recon.py -d example.com -A
   python recon.py -d example.com --fase subdomain,dns,ports
+  python recon.py -d example.com --recon-subs
+  python recon.py -d example.com --recon-subs --fase urls,js,security
 
 fase yang tersedia:
   {chr(10)+'  '.join(f'{i+1:2}. {f}' for i, f in enumerate(FASE_LIST))}
 """
+
+
+def _find_alive_subs(output_dir: str, target: str) -> list[str]:
+    """Baca alive_subdomains.txt dari hasil subdomain phase yang baru saja jalan."""
+    from datetime import datetime
+    date_tag    = datetime.now().strftime("recon_%d_%m_%Y")
+    folder_name = target.replace("*.", "").replace("/", "_")
+    alive_file  = os.path.join(output_dir, folder_name, date_tag, "subdomain", "alive_subdomains.txt")
+
+    if not os.path.exists(alive_file):
+        return []
+
+    subs = []
+    with open(alive_file) as f:
+        for line in f:
+            cleaned = _clean_target(line.strip())
+            cleaned = cleaned.split("/")[0]  # buang path jika ada
+            if cleaned:
+                subs.append(cleaned)
+
+    return list(dict.fromkeys(subs))  # dedupe, jaga urutan
 
 
 def _load_targets_from_file(path: str) -> list[str]:
@@ -173,6 +209,55 @@ def main():
     os.makedirs(args.output, exist_ok=True)
 
     # ── jalankan recon ───────────────────────────────────────────
+    if args.recon_subs:
+        root = targets[0]
+
+        # tentukan fase per subdomain: --fase (minus subdomain) atau semua minus subdomain
+        if args.fase:
+            sub_fases = [f for f in fases if f != "subdomain"]
+        else:
+            sub_fases = [f for f in FASE_LIST if f != "subdomain"]
+
+        info(f"mode          : recon-subs")
+        info(f"root domain   : {root}")
+        info(f"fase subs     : {', '.join(sub_fases)}")
+        info(f"output        : {args.output}")
+
+        # step 1: enumerasi subdomain di root
+        section(f"[1] enumerasi subdomain — {root}")
+        try:
+            run_target(target=root, output_dir=args.output, fases=["subdomain"])
+        except KeyboardInterrupt:
+            console.print()
+            warn("dihentikan oleh pengguna (Ctrl+C)")
+            sys.exit(0)
+
+        # step 2: load subdomain aktif
+        alive_subs = _find_alive_subs(args.output, root)
+        if not alive_subs:
+            warn("tidak ada subdomain aktif ditemukan, recon-subs berhenti")
+            sys.exit(0)
+
+        info(f"subdomain aktif ditemukan: {len(alive_subs)}")
+
+        # step 3: recon tiap subdomain
+        total_subs = len(alive_subs)
+        for i, sub in enumerate(alive_subs, 1):
+            section(f"[{i}/{total_subs}] {sub}")
+            try:
+                run_target(target=sub, output_dir=args.output, fases=sub_fases)
+            except KeyboardInterrupt:
+                console.print()
+                warn("dihentikan oleh pengguna (Ctrl+C)")
+                sys.exit(0)
+            except Exception as exc:
+                err(f"error pada {sub}: {exc}")
+                continue
+
+        section("semua subdomain selesai")
+        info(f"hasil disimpan di: {args.output}")
+        return
+
     total = len(targets)
     info(f"total target  : {total}")
     info(f"fase          : {', '.join(fases)}")
