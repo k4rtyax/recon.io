@@ -46,19 +46,6 @@ _HARD_DEPS: dict[str, str] = {
     "params": "urls",
 }
 
-# File output yang menandakan fase sudah pernah jalan
-_FASE_OUTPUT_CHECK: dict[str, str] = {
-    "subdomain":   "subdomain/alive_subdomains.txt",
-    "dns":         "dns/dns_records.txt",
-    "ports":       "ports/open_ports.txt",
-    "fingerprint": "fingerprint/tech_stack.txt",
-    "urls":        "urls/all_urls.txt",
-    "js":          "js/js_files.txt",
-    "params":      "params/discovered_params.txt",
-    "security":    "security/security_analysis.txt",
-    "dirbrute":    "dirbrute/ffuf_results.txt",
-}
-
 
 def _setup_dirs(target_dir: str, fases: list = None):
     subdirs = list(fases) if fases else [
@@ -80,15 +67,6 @@ def _get_waves(fases: list[str]) -> list[list[str]]:
     if wave3:
         waves.append(wave3)
     return waves
-
-
-def _fase_done(target_dir: str, fase: str) -> bool:
-    """Cek apakah fase sudah punya output dari run sebelumnya."""
-    check = _FASE_OUTPUT_CHECK.get(fase)
-    if not check:
-        return False
-    path = os.path.join(target_dir, check)
-    return os.path.exists(path) and os.path.getsize(path) > 0
 
 
 def _run_fase(
@@ -138,7 +116,6 @@ def run_target(
     target: str,
     output_dir: str = DEFAULT_OUTPUT_DIR,
     fases: list = None,
-    resume: bool = False,
 ):
     if fases is None:
         fases = FASE_LIST
@@ -153,17 +130,6 @@ def run_target(
     folder_name = target.replace("*.", "").replace("/", "_")
     target_dir  = os.path.join(output_dir, folder_name, date_tag)
     _setup_dirs(target_dir, fases)
-
-    # filter fase yang sudah punya output jika --resume
-    skipped: list[str] = []
-    if resume:
-        skipped = [f for f in fases if _fase_done(target_dir, f)]
-        if skipped:
-            info(f"resume: melewati {len(skipped)} fase: {', '.join(skipped)}")
-        fases = [f for f in fases if f not in skipped]
-        if not fases:
-            info("semua fase sudah selesai, tidak ada yang perlu dijalankan")
-            return
 
     report       = Report(target, target_dir)
     waves        = _get_waves(fases)
@@ -204,12 +170,9 @@ def run_target(
                             done_fases.append(fase)
                         progress.advance(task_id)
 
-    # tambah ke report dalam urutan FASE_LIST, bukan urutan selesai.
-    # gabungkan fase yang di-skip (resume) dengan yang baru jalan agar
-    # report tetap lengkap DAN urutannya benar.
-    report_fases = set(skipped) | set(done_fases)
+    # tambah ke report dalam urutan FASE_LIST, bukan urutan selesai
     for fase in FASE_LIST:
-        if fase in report_fases:
+        if fase in done_fases:
             _add_to_report(report, fase)
 
     done_c  = len(done_fases)

@@ -82,11 +82,6 @@ def parse_args():
         help="tampilkan daftar fase yang tersedia lalu keluar",
     )
     parser.add_argument(
-        "--resume",
-        action="store_true",
-        help="lanjutkan run sebelumnya — lewati fase yang sudah punya output hari ini",
-    )
-    parser.add_argument(
         "--check",
         action="store_true",
         help="cek status semua tools yang dibutuhkan lalu keluar",
@@ -286,7 +281,7 @@ def main():
         # step 1: enumerasi subdomain di root
         section(f"[1] enumerasi subdomain — {root}")
         try:
-            run_target(target=root, output_dir=args.output, fases=["subdomain"], resume=args.resume)
+            run_target(target=root, output_dir=args.output, fases=["subdomain"])
         except KeyboardInterrupt:
             console.print()
             warn("dihentikan oleh pengguna (Ctrl+C)")
@@ -305,7 +300,7 @@ def main():
         for i, sub in enumerate(alive_subs, 1):
             section(f"[{i}/{total_subs}] {sub}")
             try:
-                run_target(target=sub, output_dir=args.output, fases=sub_fases, resume=args.resume)
+                run_target(target=sub, output_dir=args.output, fases=sub_fases)
             except KeyboardInterrupt:
                 console.print()
                 warn("dihentikan oleh pengguna (Ctrl+C)")
@@ -330,7 +325,6 @@ def main():
                 target=target,
                 output_dir=args.output,
                 fases=fases,
-                resume=args.resume,
             )
         except KeyboardInterrupt:
             console.print()
