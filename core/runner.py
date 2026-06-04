@@ -34,12 +34,12 @@ FASE_MAP = {
 }
 
 
-def _setup_dirs(target_dir: str):
-    subdirs = [
+def _setup_dirs(target_dir: str, fases: list = None):
+    subdirs = list(fases) if fases else [
         "subdomain", "dns", "ports", "fingerprint",
-        "urls", "js", "security", "dirbrute", "report",
+        "urls", "js", "security", "dirbrute",
     ]
-    for d in subdirs:
+    for d in subdirs + ["report"]:
         os.makedirs(os.path.join(target_dir, d), exist_ok=True)
 
 
@@ -71,7 +71,7 @@ def run_target(
     date_tag    = datetime.now().strftime("recon_%d_%m_%Y")
     folder_name = target.replace("*.", "").replace("/", "_")
     target_dir  = os.path.join(output_dir, folder_name, date_tag)
-    _setup_dirs(target_dir)
+    _setup_dirs(target_dir, fases)
 
     # report
     report = Report(target, target_dir)

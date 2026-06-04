@@ -13,8 +13,14 @@ from config import SECRET_PATTERNS, DEFAULT_USER_AGENT, TIMEOUTS, TOOLS
 def run(target: str, target_dir: str):
     out      = os.path.join(target_dir, "js")
     urls_dir = os.path.join(target_dir, "urls")
-    all_urls = read_lines(os.path.join(urls_dir, "all_urls.txt"))
+    all_urls_path = os.path.join(urls_dir, "all_urls.txt")
     t = TIMEOUTS["js"]
+
+    if not os.path.exists(all_urls_path):
+        warn("all_urls.txt tidak ditemukan — jalankan fase 'urls' terlebih dahulu")
+        return
+
+    all_urls = read_lines(all_urls_path)
 
     # ── ambil semua URL .js (filter in-scope & resolusi URL relatif) ──
     base_url = get_working_url(target)
