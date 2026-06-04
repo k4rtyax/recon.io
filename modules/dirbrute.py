@@ -11,7 +11,7 @@ from config import DEFAULT_USER_AGENT, TIMEOUTS, TOOLS, WORDLIST_PATHS
 
 def _find_wordlist() -> str | None:
     for path in WORDLIST_PATHS:
-        if path and os.path.exists(path):
+        if path and os.path.exists(path) and os.path.getsize(path) > 0:
             return path
     return None
 
