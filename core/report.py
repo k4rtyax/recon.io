@@ -42,29 +42,45 @@ class Report:
 
     # ── header + ringkasan prioritas ─────────────────────────────
 
-    def _build_summary(self) -> tuple[str, str]:
+    def get_stats(self) -> dict:
         d = self.target_dir
-
-        alive_sub    = _count(f"{d}/subdomain/alive_subdomains.txt")
-        total_sub    = _count(f"{d}/subdomain/all_subdomains.txt")
-        open_ports   = _count(f"{d}/ports/open_ports.txt")
-        total_urls   = _count(f"{d}/urls/all_urls.txt")
-        categorized  = _count(f"{d}/urls/categorized.txt")
-        params_urls  = _count(f"{d}/urls/params_urls.txt")
-        js_ep        = _count(f"{d}/js/js_endpoints.txt")
-        secrets      = _count(f"{d}/js/js_secrets.txt")
-        missing_hdrs = _count(f"{d}/security/missing_headers.txt")
-        cookies_bad  = _count(f"{d}/security/insecure_cookies.txt")
-        takeover     = _count(f"{d}/security/takeover.txt")
-        disc_params  = _count(f"{d}/params/discovered_params.txt")
-
-        # Cek CORS — hanya hitung jika ada temuan nyata (bukan "no cors issues found")
         cors_findings = 0
         cors_file = f"{d}/security/cors_results.txt"
         if os.path.exists(cors_file):
             with open(cors_file) as f:
                 lines = [l for l in f.read().splitlines() if l.strip() and "no cors" not in l.lower()]
             cors_findings = len(lines)
+        return {
+            "alive_sub":    _count(f"{d}/subdomain/alive_subdomains.txt"),
+            "total_sub":    _count(f"{d}/subdomain/all_subdomains.txt"),
+            "open_ports":   _count(f"{d}/ports/open_ports.txt"),
+            "total_urls":   _count(f"{d}/urls/all_urls.txt"),
+            "categorized":  _count(f"{d}/urls/categorized.txt"),
+            "params_urls":  _count(f"{d}/urls/params_urls.txt"),
+            "js_ep":        _count(f"{d}/js/js_endpoints.txt"),
+            "secrets":      _count(f"{d}/js/js_secrets.txt"),
+            "missing_hdrs": _count(f"{d}/security/missing_headers.txt"),
+            "cookies_bad":  _count(f"{d}/security/insecure_cookies.txt"),
+            "takeover":     _count(f"{d}/security/takeover.txt"),
+            "disc_params":  _count(f"{d}/params/discovered_params.txt"),
+            "cors":         cors_findings,
+        }
+
+    def _build_summary(self) -> tuple[str, str]:
+        s            = self.get_stats()
+        alive_sub    = s["alive_sub"]
+        total_sub    = s["total_sub"]
+        open_ports   = s["open_ports"]
+        total_urls   = s["total_urls"]
+        categorized  = s["categorized"]
+        params_urls  = s["params_urls"]
+        js_ep        = s["js_ep"]
+        secrets      = s["secrets"]
+        missing_hdrs = s["missing_hdrs"]
+        cookies_bad  = s["cookies_bad"]
+        takeover     = s["takeover"]
+        disc_params  = s["disc_params"]
+        cors_findings = s["cors"]
 
         # tentukan prioritas temuan
         findings = []

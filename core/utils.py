@@ -123,12 +123,17 @@ def dedupe_file(path: str):
     write_lines(path, sorted(set(lines)))
 
 
+_url_cache: dict[str, str] = {}
+
+
 def get_working_url(target: str, timeout: int = 5) -> str:
-    """Cek apakah target mendukung HTTPS, jika gagal gunakan HTTP."""
+    """Cek apakah target mendukung HTTPS, jika gagal gunakan HTTP. Hasil di-cache."""
+    if target in _url_cache:
+        return _url_cache[target]
     code, stdout, _ = run(
         ["curl", "-sI", "-L", "--max-time", str(timeout), f"https://{target}"],
         timeout=timeout + 2,
     )
-    if code == 0 and stdout.strip():
-        return f"https://{target}"
-    return f"http://{target}"
+    result = f"https://{target}" if code == 0 and stdout.strip() else f"http://{target}"
+    _url_cache[target] = result
+    return result

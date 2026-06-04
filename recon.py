@@ -11,6 +11,7 @@ Penggunaan:
 """
 
 import sys
+import shutil
 
 if sys.version_info < (3, 10):
     sys.stderr.write("Error: Python 3.10+ is required to run recon.io due to union type hinting.\n")
@@ -81,6 +82,16 @@ def parse_args():
         help="tampilkan daftar fase yang tersedia lalu keluar",
     )
     parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="lanjutkan run sebelumnya — lewati fase yang sudah punya output hari ini",
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="cek status semua tools yang dibutuhkan lalu keluar",
+    )
+    parser.add_argument(
         "--recon-subs",
         action="store_true",
         dest="recon_subs",
@@ -98,7 +109,7 @@ def parse_args():
     )
 
     args = parser.parse_args()
-    if not args.list_fase and not (args.domain or args.subdomain or args.file):
+    if not args.check and not args.list_fase and not (args.domain or args.subdomain or args.file):
         parser.error("one of the arguments -d/--domain -s/--subdomain -f/--file is required")
     if args.recon_subs and not args.domain:
         parser.error("--recon-subs hanya bisa digunakan dengan -d/--domain")
@@ -119,6 +130,49 @@ contoh penggunaan:
 fase yang tersedia:
   {chr(10)+'  '.join(f'{i+1:2}. {f}' for i, f in enumerate(FASE_LIST))}
 """
+
+
+def _check_tools():
+    from rich.table import Table
+    from config import TOOLS
+
+    _install_hint = {
+        "subfinder":   "go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest",
+        "alterx":      "go install github.com/projectdiscovery/alterx/cmd/alterx@latest",
+        "dnsx":        "go install github.com/projectdiscovery/dnsx/cmd/dnsx@latest",
+        "httpx":       "go install github.com/projectdiscovery/httpx/cmd/httpx@latest",
+        "naabu":       "go install github.com/projectdiscovery/naabu/v2/cmd/naabu@latest",
+        "katana":      "go install github.com/projectdiscovery/katana/cmd/katana@latest",
+        "nuclei":      "go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest",
+        "ffuf":        "go install github.com/ffuf/ffuf/v2@latest",
+        "amass":       "go install github.com/owasp-amass/amass/v4/...@master",
+        "gau":         "go install github.com/lc/gau/v2/cmd/gau@latest",
+        "waybackurls": "go install github.com/tomnomnom/waybackurls@latest",
+        "subzy":       "go install github.com/PentestPad/subzy@latest",
+        "wafw00f":     "pip install wafw00f",
+        "arjun":       "pip install arjun",
+        "nmap":        "brew install nmap  /  apt install nmap",
+    }
+
+    table = Table(title="recon.io — status tools", header_style="bold cyan")
+    table.add_column("tool",    style="bold white", min_width=14)
+    table.add_column("status",  min_width=10)
+    table.add_column("install jika belum ada")
+
+    all_tools = {**{k: v for k, v in TOOLS.items() if v}, "curl": "curl", "dig": "dig", "whois": "whois"}
+
+    found = missing = 0
+    for name, binary in sorted(all_tools.items()):
+        if shutil.which(binary):
+            table.add_row(name, "[bold green]✓ ada[/bold green]", "")
+            found += 1
+        else:
+            hint = _install_hint.get(name, "")
+            table.add_row(name, "[bold red]✗ tidak ada[/bold red]", f"[dim]{hint}[/dim]")
+            missing += 1
+
+    console.print(table)
+    console.print(f"\n  [bold green]{found} tools siap[/bold green]  |  [bold red]{missing} belum terinstall[/bold red]\n")
 
 
 def _find_alive_subs(output_dir: str, target: str) -> list[str]:
@@ -171,6 +225,11 @@ def main():
     args = parse_args()
 
     banner()
+
+    # ── check tools ──────────────────────────────────────────────
+    if args.check:
+        _check_tools()
+        sys.exit(0)
 
     # ── list fase ────────────────────────────────────────────────
     if args.list_fase:
@@ -226,7 +285,7 @@ def main():
         # step 1: enumerasi subdomain di root
         section(f"[1] enumerasi subdomain — {root}")
         try:
-            run_target(target=root, output_dir=args.output, fases=["subdomain"])
+            run_target(target=root, output_dir=args.output, fases=["subdomain"], resume=args.resume)
         except KeyboardInterrupt:
             console.print()
             warn("dihentikan oleh pengguna (Ctrl+C)")
@@ -245,7 +304,7 @@ def main():
         for i, sub in enumerate(alive_subs, 1):
             section(f"[{i}/{total_subs}] {sub}")
             try:
-                run_target(target=sub, output_dir=args.output, fases=sub_fases)
+                run_target(target=sub, output_dir=args.output, fases=sub_fases, resume=args.resume)
             except KeyboardInterrupt:
                 console.print()
                 warn("dihentikan oleh pengguna (Ctrl+C)")
@@ -270,6 +329,7 @@ def main():
                 target=target,
                 output_dir=args.output,
                 fases=fases,
+                resume=args.resume,
             )
         except KeyboardInterrupt:
             console.print()

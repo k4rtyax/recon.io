@@ -5,9 +5,12 @@ Ambil file JS dari URL list, ekstrak endpoint dan potential secrets.
 
 import os
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import urlparse
 from core.utils import info, warn, run as exec_cmd, read_lines, write_lines, tool_available, get_working_url
 from config import SECRET_PATTERNS, DEFAULT_USER_AGENT, TIMEOUTS, TOOLS
+
+_JS_WORKERS = 10
 
 
 def run(target: str, target_dir: str):
@@ -68,29 +71,30 @@ def run(target: str, target_dir: str):
     email_re = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
     secret_res = [re.compile(p, re.IGNORECASE) for p in SECRET_PATTERNS]
 
-    # ── download & analisis tiap file JS ─────────────────────────
-    for js_url in js_urls[:50]:  # batasi 50 file
+    # ── download & analisis tiap file JS (paralel) ───────────────
+    def _fetch_and_parse(js_url: str):
         code, content, _ = exec_cmd(
-            ["curl", "-sfL", "-A", DEFAULT_USER_AGENT,
-             "--max-time", "15", js_url],
+            ["curl", "-sfL", "-A", DEFAULT_USER_AGENT, "--max-time", "15", js_url],
             timeout=t,
         )
         if code != 0 or not content:
-            continue
-
-        # endpoints
-        for m in endpoint_re.finditer(content):
-            endpoints_all.append(m.group(1))
-
-        # emails
-        for m in email_re.finditer(content):
-            emails_all.append(m.group(0))
-
-        # secrets
+            return [], [], []
+        eps  = [m.group(1) for m in endpoint_re.finditer(content)]
+        ems  = [m.group(0) for m in email_re.finditer(content)]
+        secs = []
         for srx in secret_res:
             for m in srx.finditer(content):
                 snippet = content[max(0, m.start()-20):m.end()+20].strip()
-                secrets_all.append(f"[{js_url}] {snippet}")
+                secs.append(f"[{js_url}] {snippet}")
+        return eps, ems, secs
+
+    with ThreadPoolExecutor(max_workers=_JS_WORKERS) as executor:
+        futures = {executor.submit(_fetch_and_parse, u): u for u in js_urls[:50]}
+        for future in as_completed(futures):
+            eps, ems, secs = future.result()
+            endpoints_all.extend(eps)
+            emails_all.extend(ems)
+            secrets_all.extend(secs)
 
     # ── simpan hasil ─────────────────────────────────────────────
     write_lines(os.path.join(out, "js_endpoints.txt"), sorted(set(endpoints_all)))

@@ -17,6 +17,7 @@ from config import FASE_LIST, DEFAULT_OUTPUT_DIR
 from core.report import Report
 from core.utils import info, ok, warn, err, section, console
 from rich.progress import Progress, TextColumn, BarColumn, MofNCompleteColumn, TimeElapsedColumn
+from rich.table import Table
 
 import modules.subdomain   as mod_subdomain
 import modules.dns         as mod_dns
@@ -41,10 +42,22 @@ FASE_MAP = {
     "dirbrute":    mod_dirbrute,
 }
 
-# Fase yang harus menunggu fase lain selesai dulu
 _HARD_DEPS: dict[str, str] = {
     "js":     "urls",
     "params": "urls",
+}
+
+# File output yang menandakan fase sudah pernah jalan
+_FASE_OUTPUT_CHECK: dict[str, str] = {
+    "subdomain":   "subdomain/alive_subdomains.txt",
+    "dns":         "dns/dns_records.txt",
+    "ports":       "ports/open_ports.txt",
+    "fingerprint": "fingerprint/tech_stack.txt",
+    "urls":        "urls/all_urls.txt",
+    "js":          "js/js_files.txt",
+    "params":      "params/discovered_params.txt",
+    "security":    "security/security_analysis.txt",
+    "dirbrute":    "dirbrute/ffuf_results.txt",
 }
 
 
@@ -58,21 +71,25 @@ def _setup_dirs(target_dir: str, fases: list = None):
 
 
 def _get_waves(fases: list[str]) -> list[list[str]]:
-    """Pisahkan fases ke dalam gelombang eksekusi berurutan."""
     waves: list[list[str]] = []
-
     if "subdomain" in fases:
         waves.append(["subdomain"])
-
     wave2 = [f for f in fases if f != "subdomain" and f not in _HARD_DEPS]
     if wave2:
         waves.append(wave2)
-
     wave3 = [f for f in fases if f in _HARD_DEPS]
     if wave3:
         waves.append(wave3)
-
     return waves
+
+
+def _fase_done(target_dir: str, fase: str) -> bool:
+    """Cek apakah fase sudah punya output dari run sebelumnya."""
+    check = _FASE_OUTPUT_CHECK.get(fase)
+    if not check:
+        return False
+    path = os.path.join(target_dir, check)
+    return os.path.exists(path) and os.path.getsize(path) > 0
 
 
 def _run_fase(
@@ -94,10 +111,39 @@ def _run_fase(
         return False
 
 
+def _print_summary(report: Report):
+    s = report.get_stats()
+
+    table = Table(title=f"ringkasan — {report.target}", show_header=True, header_style="bold cyan")
+    table.add_column("temuan", style="white")
+    table.add_column("jumlah", justify="right")
+
+    def _row(label, val, critical=False):
+        color = "bold red" if critical and val > 0 else ("bold green" if val > 0 else "dim")
+        table.add_row(label, f"[{color}]{val}[/{color}]")
+
+    _row("subdomain aktif",       s["alive_sub"])
+    _row("subdomain total",       s["total_sub"])
+    _row("open ports",            s["open_ports"])
+    _row("total URLs",            s["total_urls"])
+    _row("URL terkategorisasi",   s["categorized"])
+    _row("JS endpoints",          s["js_ep"])
+    _row("potential secrets",     s["secrets"],      critical=True)
+    _row("hidden params",         s["disc_params"],  critical=True)
+    _row("takeover candidates",   s["takeover"],     critical=True)
+    _row("CORS issues",           s["cors"],         critical=True)
+    _row("missing sec headers",   s["missing_hdrs"])
+    _row("insecure cookies",      s["cookies_bad"])
+
+    console.print()
+    console.print(table)
+
+
 def run_target(
     target: str,
     output_dir: str = DEFAULT_OUTPUT_DIR,
     fases: list = None,
+    resume: bool = False,
 ):
     if fases is None:
         fases = FASE_LIST
@@ -112,6 +158,16 @@ def run_target(
     folder_name = target.replace("*.", "").replace("/", "_")
     target_dir  = os.path.join(output_dir, folder_name, date_tag)
     _setup_dirs(target_dir, fases)
+
+    # filter fase yang sudah punya output jika --resume
+    if resume:
+        skipped = [f for f in fases if _fase_done(target_dir, f)]
+        if skipped:
+            info(f"resume: melewati {len(skipped)} fase yang sudah selesai: {', '.join(skipped)}")
+        fases = [f for f in fases if not _fase_done(target_dir, f)]
+        if not fases:
+            info("semua fase sudah selesai, tidak ada yang perlu dijalankan")
+            return
 
     report      = Report(target, target_dir)
     report_lock = threading.Lock()
@@ -155,6 +211,7 @@ def run_target(
                         progress.advance(task_id)
 
     md_path, txt_path = report.save()
+    _print_summary(report)
 
     section("selesai")
     info(f"fase berhasil : {done_c}/{total}")
