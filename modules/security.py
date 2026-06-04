@@ -31,14 +31,33 @@ def run(target: str, target_dir: str):
         for line in stdout.splitlines() if ":" in line
     }
 
+    # ambil value CSP untuk cek apakah frame-ancestors sudah menggantikan X-Frame-Options
+    csp_value = ""
+    for line in stdout.splitlines():
+        if line.lower().startswith("content-security-policy"):
+            csp_value = line.split(":", 1)[-1].strip().lower()
+
+    def _is_missing(hdr: str) -> bool:
+        if hdr.lower() in header_names:
+            return False
+        # X-Frame-Options dianggap terpenuhi jika CSP punya frame-ancestors (XFO sudah deprecated)
+        if hdr.lower() == "x-frame-options" and "frame-ancestors" in csp_value:
+            return False
+        return True
+
     # ── missing security headers ──────────────────────────────────
-    missing = [h for h in REQUIRED_SECURITY_HEADERS if h.lower() not in header_names]
+    missing = [h for h in REQUIRED_SECURITY_HEADERS if _is_missing(h)]
     write_lines(os.path.join(out, "missing_headers.txt"), missing)
     info(f"missing security headers: {len(missing)}")
 
     analysis = []
     for hdr in REQUIRED_SECURITY_HEADERS:
-        status = "MISSING" if hdr.lower() not in header_names else "present"
+        if hdr.lower() in header_names:
+            status = "present"
+        elif not _is_missing(hdr):
+            status = "covered"   # tidak ada, tapi di-cover header lain (mis. CSP frame-ancestors)
+        else:
+            status = "MISSING"
         analysis.append(f"{status:<10} {hdr}")
     with open(os.path.join(out, "security_analysis.txt"), "w") as f:
         f.write("\n".join(analysis))
@@ -132,7 +151,6 @@ def _check_cors(url: str, out_file: str, timeout: int):
         if code != 0:
             continue
 
-        headers_lower = stdout.lower()
         acao = ""
         acac = ""
         for line in stdout.splitlines():
@@ -145,11 +163,14 @@ def _check_cors(url: str, out_file: str, timeout: int):
         if not acao:
             continue
 
-        # Klasifikasi tingkat keparahan
-        if acao == origin or acao == "*":
+        # Hanya origin reflection yang benar-benar misconfiguration.
+        # ACAO: * (tanpa kondisi) by-design untuk API/CDN publik — bukan bug.
+        # ACAO: * + credentials ditolak browser, jadi tidak exploitable.
+        # Karena origin uji termasuk "null", refleksi null juga tertangkap di sini.
+        if acao == origin:
             severity = "CRITICAL" if acac.lower() == "true" else "MEDIUM"
             findings.append(
-                f"[{severity}] Origin: {origin} → ACAO: {acao} | ACAC: {acac or 'not set'}"
+                f"[{severity}] Origin reflection: {origin} → ACAO: {acao} | ACAC: {acac or 'not set'}"
             )
 
     if findings:

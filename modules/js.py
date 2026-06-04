@@ -8,7 +8,7 @@ import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import urlparse
 from core.utils import info, warn, run as exec_cmd, read_lines, write_lines, tool_available, get_working_url
-from config import SECRET_PATTERNS, DEFAULT_USER_AGENT, TIMEOUTS, TOOLS
+from config import SECRET_PATTERNS, SECRET_PLACEHOLDER_MARKERS, DEFAULT_USER_AGENT, TIMEOUTS, TOOLS
 
 import os as _os
 _JS_WORKERS = 10
@@ -89,6 +89,10 @@ def run(target: str, target_dir: str):
         secs = []
         for srx in secret_res:
             for m in srx.finditer(content):
+                matched = m.group(0).lower()
+                # buang placeholder/dummy (mis. "YOUR_API_KEY_HERE", "changeme")
+                if any(mk in matched for mk in SECRET_PLACEHOLDER_MARKERS):
+                    continue
                 snippet = content[max(0, m.start()-20):m.end()+20].strip()
                 secs.append(f"[{js_url}] {snippet}")
         return eps, ems, secs

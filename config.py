@@ -165,6 +165,17 @@ SECRET_PATTERNS = [
     r"eyJ[a-zA-Z0-9_-]{10,}\.eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}",
 ]
 
+# ─── PLACEHOLDER MARKERS ────────────────────────────────────────
+# Jika hasil match secret mengandung salah satu substring ini, anggap
+# placeholder/dummy (bukan credential asli) dan buang. Substring dipilih
+# yang praktis tidak pernah muncul di credential high-entropy nyata.
+SECRET_PLACEHOLDER_MARKERS = [
+    "your_", "your-", "yourkey", "example", "placeholder", "changeme",
+    "change_me", "xxxxx", "dummy", "sample", "redacted", "<your",
+    "{{", "}}", "todo", "fixme", "api_key_here", "secret_here",
+    "insert_", "replace_", "enter_your", "my_secret",
+]
+
 # ─── SECURITY HEADERS YANG HARUS ADA ────────────────────────────
 REQUIRED_SECURITY_HEADERS = [
     "Strict-Transport-Security",
