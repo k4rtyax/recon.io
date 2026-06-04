@@ -56,8 +56,9 @@ TIMEOUTS = {
     "dns":         int(os.environ.get("RECON_TIMEOUT_DNS", "60")),
     "ports":       int(os.environ.get("RECON_TIMEOUT_PORTS", "300")),
     "fingerprint": int(os.environ.get("RECON_TIMEOUT_FINGERPRINT", "120")),
-    "urls":        int(os.environ.get("RECON_TIMEOUT_URLS", "120")),
+    "urls":        int(os.environ.get("RECON_TIMEOUT_URLS", "180")),
     "js":          int(os.environ.get("RECON_TIMEOUT_JS", "300")),
+    "params":      int(os.environ.get("RECON_TIMEOUT_PARAMS", "300")),
     "security":    int(os.environ.get("RECON_TIMEOUT_SECURITY", "360")),
     "dirbrute":    int(os.environ.get("RECON_TIMEOUT_DIRBRUTE", "600")),
 }
@@ -70,12 +71,18 @@ TOOLS = {
     "dnsx":         os.environ.get("RECON_TOOL_DNSX",        "dnsx"),
     "httpx":        os.environ.get("RECON_TOOL_HTTPX",       "httpx"),
     "nmap":         os.environ.get("RECON_TOOL_NMAP",        "nmap"),
-    "wafw00f":      os.environ.get("RECON_TOOL_WAFW00F",    "wafw00f"),
+    "wafw00f":      os.environ.get("RECON_TOOL_WAFW00F",     "wafw00f"),
     "katana":       os.environ.get("RECON_TOOL_KATANA",      "katana"),
     "nuclei":       os.environ.get("RECON_TOOL_NUCLEI",      "nuclei"),
     "ffuf":         os.environ.get("RECON_TOOL_FFUF",        "ffuf"),
     "naabu":        os.environ.get("RECON_TOOL_NAABU",       "naabu"),
     "linkfinder":   os.environ.get("RECON_TOOL_LINKFINDER",  ""),
+    # Tier 1 & 2
+    "amass":        os.environ.get("RECON_TOOL_AMASS",       "amass"),
+    "gau":          os.environ.get("RECON_TOOL_GAU",         "gau"),
+    "waybackurls":  os.environ.get("RECON_TOOL_WAYBACKURLS", "waybackurls"),
+    "arjun":        os.environ.get("RECON_TOOL_ARJUN",       "arjun"),
+    "subzy":        os.environ.get("RECON_TOOL_SUBZY",       "subzy"),
 }
 
 # ─── FASE MAPPING ───────────────────────────────────────────────
@@ -86,18 +93,52 @@ FASE_LIST = [
     "fingerprint",
     "urls",
     "js",
+    "params",
     "security",
     "dirbrute",
 ]
 
-# ─── INTERESTING URL PATTERNS ───────────────────────────────────
-# Dicocokkan sebagai path segment (/admin, /api, dll) — bukan substring.
-INTERESTING_PATTERNS = [
-    "admin", "login", "upload", "api", "config", "backup",
-    "debug", "test", "dev", "staging", "internal", "secret",
-    "dashboard", "panel", "manager", "console",
-    "auth", "oauth", "graphql", "swagger", "actuator",
-]
+# ─── URL CATEGORIES ─────────────────────────────────────────────
+# Digunakan oleh modules/urls.py untuk klasifikasi multi-kategori.
+# Setiap kategori menghasilkan file tersendiri di output/urls/.
+
+URL_CATEGORIES = {
+    # Parameter yang sering jadi entry point SSRF / open redirect
+    "ssrf_prone": {
+        "params": [
+            "url", "uri", "path", "redirect", "next", "return", "return_url",
+            "callback", "dest", "destination", "target", "rurl", "redirect_url",
+            "include", "load", "fetch", "open", "proxy", "src", "source", "ref",
+        ],
+    },
+    # ID numerik / UUID di path → candidate IDOR
+    "idor_hint": {
+        "path_regex": [
+            r"/\d{4,}(?:/|$)",
+            r"/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:/|$)",
+        ],
+        "params": ["id", "user_id", "account_id", "order_id", "invoice_id", "doc_id", "uid"],
+    },
+    # Endpoint versi lama — sering kurang di-maintain
+    "old_version": {
+        "path_segments": ["/v1/", "/v2/", "/api/v1", "/api/v2", "/api/v0", "/rest/v1"],
+    },
+    # Tool internal / debug yang tidak sengaja publik
+    "exposed_tool": {
+        "path_segments": [
+            "actuator", "graphql", "swagger", "api-docs", "redoc", "_debug",
+            "jolokia", "jmx-console", "web-console", "heapdump", "threaddump",
+            "metrics", "health", "env", "beans", "mappings",
+        ],
+    },
+    # Parameter yang rawan path traversal / LFI
+    "path_traversal": {
+        "params": [
+            "file", "filename", "path", "template", "include", "page",
+            "view", "document", "folder", "root", "dir", "layout", "module",
+        ],
+    },
+}
 
 # ─── SECRET PATTERNS (regex) ────────────────────────────────────
 # Setiap pattern dirancang untuk mencocokkan format credential spesifik,
