@@ -24,6 +24,8 @@ def run(target: str, target_dir: str):
         os.path.join(urls_dir, "idor_hint.txt"),
         os.path.join(urls_dir, "exposed_tool.txt"),
         os.path.join(urls_dir, "params_urls.txt"),
+        os.path.join(urls_dir, "ssrf_prone.txt"),
+        os.path.join(urls_dir, "path_traversal.txt"),
     ]
 
     endpoints = []

@@ -62,7 +62,8 @@ class Report:
         cors_findings = 0
         cors_file = f"{d}/security/cors_results.txt"
         if os.path.exists(cors_file):
-            lines = [l for l in open(cors_file).read().splitlines() if l.strip() and "no cors" not in l.lower()]
+            with open(cors_file) as f:
+                lines = [l for l in f.read().splitlines() if l.strip() and "no cors" not in l.lower()]
             cors_findings = len(lines)
 
         # tentukan prioritas temuan

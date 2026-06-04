@@ -41,7 +41,6 @@ DEFAULT_OUTPUT_DIR = os.environ.get(
 )
 
 DEFAULT_TIMEOUT = int(os.environ.get("RECON_TIMEOUT", "300"))
-DEFAULT_THREADS = int(os.environ.get("RECON_THREADS", "10"))
 
 DEFAULT_USER_AGENT = os.environ.get(
     "RECON_USER_AGENT",
@@ -121,7 +120,8 @@ URL_CATEGORIES = {
     },
     # Endpoint versi lama — sering kurang di-maintain
     "old_version": {
-        "path_segments": ["/v1/", "/v2/", "/api/v1", "/api/v2", "/api/v0", "/rest/v1"],
+        "path_segments": ["v1", "v2", "v0", "v3", "v4", "rest"],
+        "path_regex": [r"/api/v\d+(?:/|$)", r"/rest/v\d+(?:/|$)"],
     },
     # Tool internal / debug yang tidak sengaja publik
     "exposed_tool": {
