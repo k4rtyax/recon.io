@@ -52,7 +52,7 @@ recon -d example.com -A
 | 3   | ports       | naabu, nmap                           |
 | 4   | fingerprint | httpx, wafw00f, curl                  |
 | 5   | urls        | katana, gau/waybackurls               |
-| 6   | js          | curl + regex (linkfinder jika ada)    |
+| 6   | js          | curl + regex                          |
 | 7   | params      | arjun                                 |
 | 8   | security    | curl, nuclei, subzy (takeover), CORS  |
 | 9   | dirbrute    | ffuf                                  |
@@ -129,8 +129,7 @@ Lihat `.env.example` untuk daftar lengkap variabel yang tersedia.
         │   ├── js_files.txt
         │   ├── js_endpoints.txt
         │   ├── js_secrets.txt
-        │   ├── js_emails.txt
-        │   └── linkfinder.txt
+        │   └── js_emails.txt
         ├── params/
         │   ├── endpoints_input.txt
         │   ├── arjun_results.json

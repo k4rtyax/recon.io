@@ -113,20 +113,3 @@ def run(target: str, target_dir: str):
     info(f"endpoints: {len(set(endpoints_all))}")
     info(f"potential secrets: {len(set(secrets_all))}")
     info(f"emails: {len(set(emails_all))}")
-
-    # ── linkfinder (opsi) ─────────────────────────────────────
-    lf_path = TOOLS["linkfinder"]
-    if lf_path and os.path.exists(lf_path) and js_urls:
-        lf_out = os.path.join(out, "linkfinder.txt")
-        lf_results = []
-        for js_url in js_urls[:20]:
-            code, stdout, _ = exec_cmd(
-                ["python3", lf_path, "-i", js_url, "-o", "cli"],
-                timeout=t,
-            )
-            if stdout:
-                lf_results.append(f"=== {js_url} ===\n{stdout}")
-        if lf_results:
-            with open(lf_out, "w") as f:
-                f.write("\n".join(lf_results) + "\n")
-        info("linkfinder selesai")

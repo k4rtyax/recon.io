@@ -75,7 +75,6 @@ TOOLS = {
     "nuclei":       os.environ.get("RECON_TOOL_NUCLEI",      "nuclei"),
     "ffuf":         os.environ.get("RECON_TOOL_FFUF",        "ffuf"),
     "naabu":        os.environ.get("RECON_TOOL_NAABU",       "naabu"),
-    "linkfinder":   os.environ.get("RECON_TOOL_LINKFINDER",  ""),
     # Tier 1 & 2
     "amass":        os.environ.get("RECON_TOOL_AMASS",       "amass"),
     "gau":          os.environ.get("RECON_TOOL_GAU",         "gau"),
