@@ -65,10 +65,12 @@ def run(target: str, target_dir: str):
         try:
             with open(arjun_out) as f:
                 data = json.load(f)
-            for url, params in data.items():
-                if params:
-                    for p in params:
-                        all_results.append(f"{url} → param: {p}")
+            for url, val in data.items():
+                # arjun bisa mengembalikan {url: [params]} atau
+                # {url: {"params": [...], "method": ...}} tergantung versi
+                params = val.get("params", []) if isinstance(val, dict) else val
+                for p in (params or []):
+                    all_results.append(f"{url} → param: {p}")
         except Exception as e:
             warn(f"gagal parse hasil arjun: {e}")
 

@@ -5,9 +5,17 @@ dnsx untuk resolusi DNS, dan httpx untuk probe keaktifan host.
 """
 
 import os
+import re
 import json
 from core.utils import info, warn, run as exec_cmd, tool_available, read_lines, write_lines
 from config import TIMEOUTS, TOOLS
+
+
+def _amass_major_version() -> int | None:
+    """Deteksi major version amass dari `amass -version`. None bila gagal dibaca."""
+    _, out, errout = exec_cmd([TOOLS["amass"], "-version"], timeout=10)
+    m = re.search(r"v?(\d+)\.\d+", f"{out}\n{errout}")
+    return int(m.group(1)) if m else None
 
 
 def run(target: str, target_dir: str):
@@ -25,16 +33,24 @@ def run(target: str, target_dir: str):
         warn("subfinder tidak ditemukan, subdomain enumeration dilewati")
         return
 
-    # ── 1b. amass (Pasif + ASN Discovery) ────────────────────────
+    # ── 1b. amass (Pasif) ────────────────────────────────────────
+    # Universal lintas-versi: amass v5+ memakai arsitektur engine/database
+    # (subcommand engine/enum/subs) dan akan menggantung pada invokasi
+    # one-shot gaya v4 — itu dilewati (subfinder sudah cover passive enum).
+    # Timeout amass dibatasi agar tak pernah menghabiskan jatah fase.
     amass_out = os.path.join(out, "amass.txt")
     if tool_available(TOOLS["amass"]):
-        exec_cmd(
-            [TOOLS["amass"], "enum", "-passive", "-d", target, "-o", amass_out, "-silent"],
-            timeout=t,
-        )
-        info("amass selesai")
+        major = _amass_major_version()
+        if major is not None and major >= 5:
+            warn(f"amass v{major} memakai arsitektur engine (bukan one-shot), dilewati — passive enum dicover subfinder")
+        else:
+            exec_cmd(
+                [TOOLS["amass"], "enum", "-passive", "-d", target, "-o", amass_out],
+                timeout=min(t, 180),
+            )
+            info("amass selesai")
     else:
-        warn("amass tidak ditemukan, ASN discovery dilewati")
+        warn("amass tidak ditemukan, passive enum tambahan dilewati")
 
     # ── 2. alterx & dnsx (Pembuatan Permutasi & Resolusi DNS) ──────
     alterx_available = tool_available(TOOLS["alterx"])
