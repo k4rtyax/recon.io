@@ -271,11 +271,12 @@ def main():
     if args.recon_subs:
         root = targets[0]
 
-        # tentukan fase per subdomain: --fase (minus subdomain) atau semua minus subdomain
-        if args.fase:
-            sub_fases = [f for f in fases if f != "subdomain"]
-        else:
-            sub_fases = [f for f in FASE_LIST if f != "subdomain"]
+        # fase per subdomain = fase terpilih minus 'subdomain'.
+        # 'fases' sudah menghormati --fase, -A, maupun default, jadi cukup pakai itu.
+        sub_fases = [f for f in fases if f != "subdomain"]
+        if not sub_fases:
+            warn("tidak ada fase tersisa untuk dijalankan per subdomain")
+            sys.exit(0)
 
         info(f"mode          : recon-subs")
         info(f"root domain   : {root}")
