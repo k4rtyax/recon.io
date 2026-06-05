@@ -159,9 +159,74 @@ echo "   recon --check"
 echo "   recon --list-fase"
 echo ""
 echo " (Opsional) Asisten AI:"
-echo "   1. edit .env  ->  isi GEMINI_API_KEY=..."
-echo "   2. JANGAN commit/share key. .env sudah diabaikan git, hanya kamu yang tahu."
-echo "   3. recon   (tanpa argumen, di terminal)  ->  mode chat AI"
+echo "   Pilih provider, lalu paste API key ke .env"
+echo ""
+echo "   1) Gemini     (gratis — ai.google.dev)"
+echo "   2) Groq       (gratis — console.groq.com)"
+echo "   3) OpenRouter  (openrouter.ai)"
+echo "   4) Ollama     (lokal, tanpa key)"
+echo "   5) Skip"
+echo ""
+
+read -p "   Pilih [1-5] (default: 5): " ai_choice
+ai_choice="${ai_choice:-5}"
+
+_set_env() {
+    local key="$1" val="$2"
+    if grep -qE "^#?\s*${key}=" "$RECON_DIR/.env" 2>/dev/null; then
+        sed -i '' "s|^#*\s*${key}=.*|${key}=${val}|" "$RECON_DIR/.env"
+    else
+        echo "${key}=${val}" >> "$RECON_DIR/.env"
+    fi
+}
+
+case "$ai_choice" in
+    1)
+        read -p "   GEMINI_API_KEY: " _key
+        if [ -n "$_key" ]; then
+            _set_env "GEMINI_API_KEY" "$_key"
+            _set_env "RECON_AI_MODEL" "gemini-2.5-flash"
+            echo "   [+] Gemini dikonfigurasi"
+        else
+            echo "   [~] Dilewati"
+        fi
+        ;;
+    2)
+        read -p "   GROQ_API_KEY: " _key
+        if [ -n "$_key" ]; then
+            _set_env "RECON_AI_PROVIDER" "openai"
+            _set_env "RECON_AI_BASE_URL" "https://api.groq.com/openai/v1"
+            _set_env "RECON_AI_MODEL" "llama-3.3-70b-versatile"
+            _set_env "GROQ_API_KEY" "$_key"
+            echo "   [+] Groq dikonfigurasi"
+        else
+            echo "   [~] Dilewati"
+        fi
+        ;;
+    3)
+        read -p "   OPENROUTER_API_KEY: " _key
+        if [ -n "$_key" ]; then
+            _set_env "RECON_AI_PROVIDER" "openai"
+            _set_env "RECON_AI_BASE_URL" "https://openrouter.ai/api/v1"
+            _set_env "RECON_AI_MODEL" "meta-llama/llama-3.3-70b-instruct:free"
+            _set_env "OPENROUTER_API_KEY" "$_key"
+            echo "   [+] OpenRouter dikonfigurasi"
+        else
+            echo "   [~] Dilewati"
+        fi
+        ;;
+    4)
+        _set_env "RECON_AI_PROVIDER" "openai"
+        _set_env "RECON_AI_BASE_URL" "http://localhost:11434/v1"
+        _set_env "RECON_AI_MODEL" "llama3.1"
+        echo "   [+] Ollama dikonfigurasi (pastikan sudah running)"
+        ;;
+    *)
+        echo "   [~] AI dilewati. Edit .env kapan saja untuk mengaktifkan."
+        ;;
+esac
+echo ""
+echo "   JANGAN commit/share key. .env sudah diabaikan git."
 echo "   recon tetap jalan penuh TANPA key."
 echo ""
 echo " Jika 'recon' belum dikenali, jalankan:"
@@ -171,3 +236,4 @@ else
     echo "   source ~/.bashrc"
 fi
 echo "══════════════════════════════════════════════"
+

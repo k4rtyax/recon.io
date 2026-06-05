@@ -20,7 +20,7 @@ Fitur AI itu **opsional**. Kalau kamu pasang API key, isi report (termasuk temua
 
 Mode chat ada cek scope + konfirmasi "saya berwenang" — itu **pagar etika dan pengingat**, bukan tameng keamanan. Bisa di-bypass, dan tetap kamu yang pegang tanggung jawab.
 
-Intinya: **pakai pakai izin dan akal sehat. Sisanya urusanmu.**
+Intinya: **pakai izin dan akal sehat. Sisanya urusanmu.**
 
 
 ## Penggunaan
