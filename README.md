@@ -51,6 +51,7 @@ recon -d example.com -A
 | `-A`          | jalankan fase pemetaan jaringan dasar saja (subdomain, dns, ports) |
 | `--fase FASE` | pilih fase tertentu, pisah koma            |
 | `--recon-subs`| enumerasi subdomain dulu, lalu recon tiap subdomain aktif (hanya dengan `-d`) |
+| `--scope FILE`| batasi target ke scope (file `.txt`/`.csv` HackerOne); out-of-scope dilewati |
 | `--list-fase` | tampilkan daftar fase                      |
 | `--check`     | cek status semua tools lalu keluar         |
 

@@ -98,6 +98,15 @@ def parse_args():
         ),
     )
     parser.add_argument(
+        "--scope",
+        metavar="FILE",
+        help=(
+            "file scope (.txt / .csv HackerOne) untuk membatasi target.\n"
+            "target out-of-scope dilewati; pada --recon-subs, subdomain hasil\n"
+            "enumerasi difilter ke yang in-scope saja"
+        ),
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version="recon.io 2.0",
@@ -275,6 +284,20 @@ def main():
     # ── buat output dir ──────────────────────────────────────────
     os.makedirs(args.output, exist_ok=True)
 
+    # ── load scope (opsional) ────────────────────────────────────
+    scope = None
+    if args.scope:
+        from core.scope import Scope
+        if not os.path.exists(args.scope):
+            err(f"file scope tidak ditemukan: {args.scope}")
+            sys.exit(1)
+        try:
+            scope = Scope.from_file(args.scope)
+        except Exception as exc:
+            err(f"gagal membaca scope: {exc}")
+            sys.exit(1)
+        info(f"scope         : {scope.summary()}")
+
     # ── jalankan recon ───────────────────────────────────────────
     if args.recon_subs:
         root = targets[0]
@@ -308,6 +331,17 @@ def main():
 
         info(f"subdomain aktif ditemukan: {len(alive_subs)}")
 
+        # filter ke scope (buang subdomain out-of-scope sebelum di-recon)
+        if scope:
+            before = len(alive_subs)
+            alive_subs = scope.filter(alive_subs)
+            dropped = before - len(alive_subs)
+            if dropped:
+                info(f"scope filter  : {dropped} out-of-scope dibuang, {len(alive_subs)} in-scope")
+            if not alive_subs:
+                warn("tidak ada subdomain in-scope, recon-subs berhenti")
+                sys.exit(0)
+
         # step 3: recon tiap subdomain
         total_subs = len(alive_subs)
         for i, sub in enumerate(alive_subs, 1):
@@ -332,6 +366,11 @@ def main():
     info(f"output        : {args.output}")
 
     for i, target in enumerate(targets, 1):
+        if scope:
+            in_scope, reason = scope.check(target)
+            if not in_scope:
+                warn(f"[{i}/{total}] {target} di luar scope ({reason}), dilewati")
+                continue
         section(f"[{i}/{total}] {target}")
         try:
             run_target(
