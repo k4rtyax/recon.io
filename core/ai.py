@@ -8,10 +8,19 @@ Dua mode:
 API key dibaca dari env GEMINI_API_KEY (atau GOOGLE_API_KEY). Tidak pernah ditulis
 ke disk maupun di-commit. Bila key tidak ada, fitur dilewati dengan aman.
 
+Provider (env RECON_AI_PROVIDER):
+  gemini  (default) — key dari GEMINI_API_KEY / GOOGLE_API_KEY
+  openai            — OpenAI-compatible: Groq / OpenRouter / OpenAI / Ollama (lokal)
+                      set RECON_AI_BASE_URL (mis. https://api.groq.com/openai/v1
+                      atau http://localhost:11434/v1 utk Ollama) + RECON_AI_MODEL;
+                      key dari RECON_AI_KEY / OPENAI_API_KEY / GROQ_API_KEY
+                      (Ollama lokal tak butuh key)
+
 Override via env:
-  RECON_AI_MODEL      (default: gemini-2.5-flash)
+  RECON_AI_MODEL      (default: gemini-2.5-flash untuk provider gemini)
   RECON_AI_TIMEOUT    (default: 120 detik)
   RECON_AI_MAX_CHARS  (default: 100000 — batas konteks report yang dikirim)
+  RECON_AI_MAX_TOKENS (default: 4096)
 """
 
 import os
@@ -26,15 +35,22 @@ from core.utils import info, warn, err, section, console, run as exec_cmd, get_w
 from config import FASE_LIST, TOOLS, DEFAULT_USER_AGENT
 from core.scope import Scope
 
-_API_BASE  = "https://generativelanguage.googleapis.com/v1beta/models"
-_MODEL     = os.environ.get("RECON_AI_MODEL", "gemini-2.5-flash")
+_PROVIDER   = os.environ.get("RECON_AI_PROVIDER", "gemini").strip().lower()
+_API_BASE   = "https://generativelanguage.googleapis.com/v1beta/models"
+_BASE_URL   = os.environ.get("RECON_AI_BASE_URL", "").rstrip("/")   # untuk provider openai-compatible
+_MODEL      = os.environ.get("RECON_AI_MODEL",
+                             "gemini-2.5-flash" if _PROVIDER == "gemini" else "")
 _TIMEOUT    = int(os.environ.get("RECON_AI_TIMEOUT", "120"))
 _MAX_CHARS  = int(os.environ.get("RECON_AI_MAX_CHARS", "100000"))
 _MAX_TOKENS = int(os.environ.get("RECON_AI_MAX_TOKENS", "4096"))
 
 
 def _api_key() -> str | None:
-    return os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    if _PROVIDER == "gemini":
+        return os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    # openai-compatible: Groq / OpenRouter / OpenAI / Ollama (Ollama tak butuh key)
+    return (os.environ.get("RECON_AI_KEY") or os.environ.get("OPENAI_API_KEY")
+            or os.environ.get("GROQ_API_KEY") or os.environ.get("OPENROUTER_API_KEY"))
 
 
 def _ssl_context() -> ssl.SSLContext:
@@ -47,7 +63,10 @@ def _ssl_context() -> ssl.SSLContext:
 
 
 def available() -> bool:
-    return bool(_api_key())
+    if _PROVIDER == "gemini":
+        return bool(_api_key())
+    # openai-compatible cukup punya base_url (key opsional utk Ollama lokal)
+    return bool(_BASE_URL)
 
 
 def resolve_target_dir(output_dir: str, target: str) -> str:
@@ -116,6 +135,69 @@ def _call_gemini(system: str, user: str) -> str | None:
         return None
 
 
+def _call_openai(system: str, user: str) -> str | None:
+    """Provider OpenAI-compatible: Groq, OpenRouter, OpenAI, atau Ollama (lokal)."""
+    if not _BASE_URL:
+        warn("RECON_AI_BASE_URL belum diset untuk provider 'openai' (mis. Groq/Ollama)")
+        return None
+    if not _MODEL:
+        warn("RECON_AI_MODEL belum diset (mis. llama-3.3-70b-versatile)")
+        return None
+
+    # User-Agent normal: endpoint seperti Groq di belakang Cloudflare memblok
+    # UA default urllib (Python-urllib/*) dengan error 1010.
+    headers = {"Content-Type": "application/json", "User-Agent": DEFAULT_USER_AGENT}
+    key = _api_key()
+    if key:
+        headers["Authorization"] = f"Bearer {key}"
+
+    body = {
+        "model": _MODEL,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+        "temperature": 0.4,
+        "max_tokens": _MAX_TOKENS,
+    }
+    req = urllib.request.Request(
+        f"{_BASE_URL}/chat/completions",
+        data=json.dumps(body).encode(),
+        headers=headers,
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=_TIMEOUT, context=_ssl_context()) as resp:
+            payload = json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        body = e.read().decode(errors="replace")
+        try:
+            msg = json.loads(body)["error"]["message"]
+        except Exception:
+            msg = body[:200]
+        if e.code == 429:
+            err("LLM API: kuota / rate limit (429). Coba lagi nanti.")
+        else:
+            err(f"LLM API error {e.code}: {msg[:200]}")
+        return None
+    except Exception as e:
+        err(f"LLM API gagal: {e}  (cek RECON_AI_BASE_URL / koneksi)")
+        return None
+
+    try:
+        return payload["choices"][0]["message"]["content"].strip()
+    except (KeyError, IndexError, AttributeError):
+        warn(f"LLM tidak mengembalikan teks: {json.dumps(payload)[:200]}")
+        return None
+
+
+def _call_llm(system: str, user: str) -> str | None:
+    """Dispatcher LLM sesuai RECON_AI_PROVIDER (gemini | openai)."""
+    if _PROVIDER == "openai":
+        return _call_openai(system, user)
+    return _call_gemini(system, user)
+
+
 _SYS_ATTACK = (
     "Kamu pentester web / bug bounty hunter senior. Berdasarkan laporan recon di bawah, "
     "susun rencana serangan BERPRIORITAS dan actionable dalam Bahasa Indonesia.\n"
@@ -139,7 +221,7 @@ def attack_suggestions(target: str, target_dir: str):
         return
 
     info(f"meminta saran serangan dari Gemini ({_MODEL})...")
-    answer = _call_gemini(_SYS_ATTACK, f"Target: {target}\n\n=== LAPORAN RECON ===\n{report}")
+    answer = _call_llm(_SYS_ATTACK, f"Target: {target}\n\n=== LAPORAN RECON ===\n{report}")
     if not answer:
         return
 
@@ -161,7 +243,7 @@ def ask(target: str, target_dir: str, question: str):
         err(f"report untuk {target} tidak ditemukan di {target_dir} — jalankan recon dulu")
         return
 
-    answer = _call_gemini(
+    answer = _call_llm(
         _SYS_ASK,
         f"Target: {target}\n\n=== LAPORAN RECON ===\n{report}\n\n=== PERTANYAAN ===\n{question}",
     )
@@ -264,7 +346,7 @@ def _fetch_context(target: str) -> str:
 
 
 def _summarize_target(target: str, ctx: str) -> str | None:
-    return _call_gemini(_SYS_TARGET, f"Target: {target}\nInfo teknis: {ctx}")
+    return _call_llm(_SYS_TARGET, f"Target: {target}\nInfo teknis: {ctx}")
 
 
 def _write_authorization(target_dir: str, target: str, program: str, scope: "Scope | None"):
@@ -315,7 +397,7 @@ def chat_session(output_dir: str):
             if rep:
                 ctx += f"\n\n=== LAPORAN RECON ({cur_target}) ===\n{rep}"
         hist = "\n".join(history[-6:])
-        raw = _call_gemini(_SYS_CHAT, f"{hist}\nUSER: {user}{ctx}")
+        raw = _call_llm(_SYS_CHAT, f"{hist}\nUSER: {user}{ctx}")
         if not raw:
             continue
 

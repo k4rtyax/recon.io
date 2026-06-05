@@ -244,7 +244,7 @@ def main():
             err("mode chat butuh terminal interaktif. jalankan: recon -d <domain>")
         else:
             err("tidak ada target. jalankan: recon -d <domain>")
-            err("(set GEMINI_API_KEY di .env + jalankan di terminal untuk mode chat AI)")
+            err("(set API key AI di .env — lihat .env.example — + jalankan di terminal untuk mode chat)")
         sys.exit(1)
 
     # ── tentukan daftar fase ─────────────────────────────────────
