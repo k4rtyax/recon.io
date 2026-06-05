@@ -1,5 +1,5 @@
 """
-AI assistant (opsional) — Google Gemini via REST API (stdlib, tanpa dependency tambahan).
+AI assistant — Google Gemini via REST API (stdlib, tanpa dependency tambahan).
 
 Dua mode:
   - attack_suggestions() : saran serangan berprioritas dari hasil recon (flag --ai)
@@ -94,7 +94,7 @@ def _load_report(target_dir: str) -> str | None:
 def _call_gemini(system: str, user: str) -> str | None:
     key = _api_key()
     if not key:
-        warn("GEMINI_API_KEY tidak di-set — fitur AI dilewati (set di .env)")
+        warn("API_KEY tidak di-set — fitur AI dilewati (set di .env)")
         return None
 
     url  = f"{_API_BASE}/{_MODEL}:generateContent?key={key}"
@@ -367,6 +367,95 @@ def _write_authorization(target_dir: str, target: str, program: str, scope: "Sco
     return path
 
 
+def _execute_run(target, fases, scope, program, output_dir, ai_summary=True):
+    """Validasi scope -> fetch konteks -> gerbang 'berwenang' -> jalankan recon.
+    Return (target, target_dir) bila jalan; None bila out-of-scope / dibatalkan.
+    Dipakai bersama oleh mode chat (AI) dan mode menu (keyboard).
+    ai_summary=False (mode menu): TIDAK ada panggilan AI sama sekali."""
+    target = _clean_target(target or "")
+    if not target:
+        console.print("[bold green][AI][/bold green] Target mana yang mau di-recon?")
+        return None
+
+    in_scope, reason = scope.check(target)
+    if not in_scope:
+        console.print(f"[bold red][AI][/bold red] {escape(target)} DI LUAR scope ({escape(reason)}). Tidak dijalankan.")
+        return None
+
+    fases = [f for f in (fases or []) if f in FASE_LIST] or list(FASE_LIST)
+    if "subdomain" in fases and not scope.is_wildcard_match(target):
+        fases = [f for f in fases if f != "subdomain"]
+        info(f"{target}: host spesifik (scope non-wildcard) — fase subdomain dilewati")
+
+    info(f"kenalan singkat dengan {target}...")
+    tctx = _fetch_context(target)   # curl saja, bukan AI
+    console.print(f"[dim]target: {escape(tctx)}[/dim]")
+    if ai_summary and available():
+        summary = _summarize_target(target, tctx)
+        if summary:
+            console.print(f"[bold green][AI][/bold green] {escape(summary)}")
+
+    console.print(
+        f"\n[bold]rencana:[/bold] target=[cyan]{target}[/cyan]  "
+        f"fase=[cyan]{', '.join(fases)}[/cyan]  output=[cyan]{output_dir}[/cyan]"
+    )
+    console.print(f"[green][scope] in-scope ({escape(reason)})[/green]")
+    console.print("[bold yellow][!] dengan melanjutkan, kamu menyatakan BERWENANG menguji target ini.[/bold yellow]")
+    ans = console.input("[?] Saya berwenang & jalankan recon sekarang? [y/N]: ").strip().lower()
+    if ans != "y":
+        console.print("[bold green][AI][/bold green] Oke, dibatalkan.")
+        return None
+
+    from core.runner import run_target
+    try:
+        run_target(target=target, output_dir=output_dir, fases=fases)
+    except KeyboardInterrupt:
+        console.print()
+        warn("recon dihentikan (Ctrl+C)")
+        return None
+    except Exception as exc:
+        err(f"recon gagal: {exc}")
+        return None
+
+    cur_dir = resolve_target_dir(output_dir, target)
+    auth = _write_authorization(cur_dir, target, program, scope)
+    info(f"otorisasi dicatat: {auth}")
+    console.print("\n[bold green][AI][/bold green] Recon beres. Tanya hasilnya, atau minta 'analisis serangan'.")
+    return target, cur_dir
+
+
+def _menu_select(scope, output_dir, program=""):
+    """Picker keyboard: pilih host in-scope + fase, lalu jalankan. Return (target, dir) | None."""
+    from core import menu as kbmenu
+    hosts = [a for a in scope.allow if not a.startswith("*.")]
+    if not hosts:
+        warn("scope hanya wildcard — tak ada host spesifik untuk dipilih via menu")
+        warn("untuk wildcard: recon -d <root> --recon-subs --scope <file>")
+        return None
+    target = kbmenu.pick("pilih target (Esc = batal):", hosts)
+    if not target:
+        return None
+    opts    = [f for f in FASE_LIST if f != "subdomain"]
+    default = ["dns", "ports", "fingerprint", "urls", "js", "security"]
+    fases = kbmenu.multi_pick("pilih fase (space = toggle, enter = ok):", opts, preselected=default)
+    if not fases:
+        warn("tidak ada fase dipilih")
+        return None
+    return _execute_run(target, fases, scope, program, output_dir, ai_summary=False)
+
+
+def menu_session(output_dir: str, scope, program: str = ""):
+    """Mode menu keyboard tanpa AI: pilih target dari scope + fase, jalankan berulang."""
+    from core import menu as kbmenu
+    section("recon.io — mode menu (scope)")
+    console.print(scope.describe(), markup=False)
+    while True:
+        _menu_select(scope, output_dir, program)
+        if not kbmenu.confirm("recon target lain?", default=False):
+            break
+    section("selesai")
+
+
 def chat_session(output_dir: str):
     """Mode percakapan scope-first: AI mengusulkan, user menyetujui sebelum recon."""
     if not available():
@@ -374,9 +463,9 @@ def chat_session(output_dir: str):
         return
 
     section("recon.io — asisten AI")
-    console.print("[bold]Mau recon apa hari ini?[/bold] Sebutkan dulu scope + link program-nya.")
-    console.print("[dim]   scope bisa: pola domain (mis. *.example.com kecuali blog), atau path file .csv/.txt[/dim]")
-    console.print("[dim]   ketik 'keluar' untuk berhenti[/dim]\n")
+    console.print("[bold]Mau recon apa hari ini?[/bold] Sebutkan dulu scope-nya.")
+    console.print("[dim]   scope: pola domain (mis. *.example.com kecuali blog) atau path file .csv/.txt[/dim]")
+    console.print("[dim]   ketik 'menu' untuk pilih target via keyboard  |  'keluar' untuk berhenti[/dim]\n")
 
     history: list[str] = []
     scope: Scope | None = None
@@ -395,6 +484,16 @@ def chat_session(output_dir: str):
         if user.lower() in {"exit", "quit", "keluar", "q"}:
             console.print("[dim]selesai. semua hasil tersimpan di folder output.[/dim]")
             break
+
+        # ── picker keyboard (tanpa AI) ───────────────────────────
+        if user.lower() in {"menu", "pilih", "pilih target"}:
+            if scope is None:
+                console.print("[bold green][AI][/bold green] Set scope dulu sebelum pakai menu.")
+                continue
+            res = _menu_select(scope, output_dir, program)
+            if res:
+                cur_target, cur_dir = res
+            continue
 
         ctx = f"\n\n[scope aktif: {scope.summary() if scope else 'BELUM diset'}]"
         if cur_dir:
@@ -437,59 +536,12 @@ def chat_session(output_dir: str):
         # ── run (wajib in-scope) ─────────────────────────────────
         elif action == "run":
             if scope is None:
-                console.print("[bold green][AI][/bold green] Set scope + link program dulu ya sebelum recon.")
+                console.print("[bold green][AI][/bold green] Set scope dulu ya sebelum recon.")
                 history += [f"USER: {user}", "AI: minta scope"]
                 continue
-            target = _clean_target(intent.get("target") or "")
-            if not target:
-                console.print("[bold green][AI][/bold green] Target mana yang mau di-recon?")
-                continue
-
-            in_scope, reason = scope.check(target)
-            if not in_scope:
-                console.print(f"[bold red][AI][/bold red] {escape(target)} DI LUAR scope ({escape(reason)}). Tidak dijalankan.")
-                history += [f"USER: {user}", f"AI: tolak out-of-scope {target}"]
-                continue
-
-            fases = [f for f in (intent.get("fases") or []) if f in FASE_LIST] or list(FASE_LIST)
-
-            # Scope non-wildcard = host spesifik: enumerasi subdomain TIDAK sah
-            # (sub yang ditemukan kemungkinan out-of-scope) -> lewati fase subdomain.
-            if "subdomain" in fases and not scope.is_wildcard_match(target):
-                fases = [f for f in fases if f != "subdomain"]
-                info(f"{target}: host spesifik (scope non-wildcard) — fase subdomain dilewati")
-
-            info(f"kenalan singkat dengan {target}...")
-            tctx = _fetch_context(target)
-            console.print(f"[dim]target: {escape(tctx)}[/dim]")
-            summary = _summarize_target(target, tctx)
-            if summary:
-                console.print(f"[bold green][AI][/bold green] {escape(summary)}")
-
-            console.print(
-                f"\n[bold]rencana:[/bold] target=[cyan]{target}[/cyan]  "
-                f"fase=[cyan]{', '.join(fases)}[/cyan]  output=[cyan]{output_dir}[/cyan]"
-            )
-            console.print(f"[green][scope] in-scope ({reason})[/green]")
-            console.print("[bold yellow][!] dengan melanjutkan, kamu menyatakan BERWENANG menguji target ini.[/bold yellow]")
-            ans = console.input("[?] Saya berwenang & jalankan recon sekarang? [y/N]: ").strip().lower()
-            if ans == "y":
-                from core.runner import run_target
-                try:
-                    run_target(target=target, output_dir=output_dir, fases=fases)
-                except KeyboardInterrupt:
-                    console.print()
-                    warn("recon dihentikan (Ctrl+C)")
-                except Exception as exc:
-                    err(f"recon gagal: {exc}")
-                else:
-                    cur_target = target
-                    cur_dir    = resolve_target_dir(output_dir, target)
-                    auth = _write_authorization(cur_dir, target, program, scope)
-                    info(f"otorisasi dicatat: {auth}")
-                    console.print("\n[bold green][AI][/bold green] Recon beres. Tanya hasilnya, atau minta 'analisis serangan'.")
-            else:
-                console.print("[bold green][AI][/bold green] Oke, dibatalkan.")
+            res = _execute_run(intent.get("target"), intent.get("fases"), scope, program, output_dir)
+            if res:
+                cur_target, cur_dir = res
 
         # ── answer / chat ────────────────────────────────────────
         else:

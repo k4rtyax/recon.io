@@ -243,17 +243,31 @@ def main():
         console.print()
         sys.exit(0)
 
-    # ── tanpa target: mode chat AI (TTY + ada key) atau error ────
+    # ── tanpa target: mode menu (--scope) / chat AI / error ──────
     if not (args.domain or args.subdomain or args.file):
         import core.ai as ai
-        if sys.stdin.isatty() and sys.stdout.isatty() and ai.available():
+        tty = sys.stdin.isatty() and sys.stdout.isatty()
+        # --scope + terminal -> mode menu keyboard (tanpa perlu AI)
+        if args.scope and tty:
+            from core.scope import Scope
+            if not os.path.exists(args.scope):
+                err(f"file scope tidak ditemukan: {args.scope}")
+                sys.exit(1)
+            try:
+                sc = Scope.from_file(args.scope)
+            except Exception as exc:
+                err(f"gagal membaca scope: {exc}")
+                sys.exit(1)
+            ai.menu_session(args.output, sc)
+            sys.exit(0)
+        if tty and ai.available():
             ai.chat_session(args.output)
             sys.exit(0)
         if ai.available():
             err("mode chat butuh terminal interaktif. jalankan: recon -d <domain>")
         else:
-            err("tidak ada target. jalankan: recon -d <domain>")
-            err("(set API key AI di .env — lihat .env.example — + jalankan di terminal untuk mode chat)")
+            err("tidak ada target. jalankan: recon -d <domain>  (atau: recon --scope <file>)")
+            err("(set API key AI di .env — lihat .env.example — untuk mode chat)")
         sys.exit(1)
 
     # ── tentukan daftar fase ─────────────────────────────────────
