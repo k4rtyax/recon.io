@@ -481,12 +481,14 @@ def chat_session(output_dir: str):
             break
         if not user:
             continue
-        if user.lower() in {"exit", "quit", "keluar", "q"}:
+        # normalisasi perintah pendek: buang petik/spasi/tanda baca yang sering ikut keketik
+        cmd = user.strip("'\"`. ").lower()
+        if cmd in {"exit", "quit", "keluar", "q"}:
             console.print("[dim]selesai. semua hasil tersimpan di folder output.[/dim]")
             break
 
         # ── picker keyboard (tanpa AI) ───────────────────────────
-        if user.lower() in {"menu", "pilih", "pilih target"}:
+        if cmd in {"menu", "pilih", "pilih target", "m"}:
             if scope is None:
                 console.print("[bold green][AI][/bold green] Set scope dulu sebelum pakai menu.")
                 continue
