@@ -171,6 +171,46 @@ Lihat `.env.example` untuk daftar lengkap variabel yang tersedia.
 - **Configurable** — semua setting bisa di-override via environment variable
 - **Universal** — tidak terikat ke target atau sistem tertentu
 
+## Asisten AI (opsional)
+
+recon.io punya asisten AI opsional. **Tanpa ini, semua recon jalan penuh** — AI cuma lapisan tambahan buat mandu dan menganalisis, bukan pengganti. Butuh API key (atau Ollama lokal).
+
+### Apa yang bisa
+
+- **Mode chat** — jalankan `recon` tanpa argumen di terminal. AI nanya scope, kasih rekomendasi target, lalu menjalankan recon **dengan persetujuanmu** (`[y/N]`). AI cuma mengusulkan; kode yang eksekusi.
+- **Scope-first** — AI hanya boleh recon target **di dalam scope**. Out-of-scope ditolak sebelum jalan. Tiap scan butuh konfirmasi "saya berwenang", dan otorisasi dicatat ke `authorization.txt`.
+- **Saran serangan & tanya-jawab** — analisis report: prioritas temuan + cara verifikasi manual.
+
+### Provider (pilih satu, set di `.env`)
+
+Default Gemini. Lihat `.env.example` untuk contoh lengkap.
+
+| Provider | Setup singkat |
+| -------- | ------------- |
+| **Gemini** (default) | `GEMINI_API_KEY=...` (gratis, ai.google.dev) |
+| **Groq** | `RECON_AI_PROVIDER=openai` + `RECON_AI_BASE_URL=https://api.groq.com/openai/v1` + `RECON_AI_MODEL=llama-3.3-70b-versatile` + `GROQ_API_KEY=...` (gratis, cepat) |
+| **Ollama** (lokal) | `RECON_AI_PROVIDER=openai` + `RECON_AI_BASE_URL=http://localhost:11434/v1` + `RECON_AI_MODEL=llama3.1` (gratis, offline, tanpa key) |
+
+### Cara pakai
+
+```bash
+recon                       # mode chat (butuh terminal + key di .env)
+  > ini scope-nya: scope.csv
+  > rekomen?
+  > recon developer.mozilla.org fokus urls,js
+```
+
+Scope juga bisa dipakai di mode flag biasa (tanpa AI):
+
+```bash
+recon -d example.com --recon-subs --scope scope.csv   # filter subdomain ke in-scope
+recon -f targets.txt --scope scope.csv                # skip target out-of-scope
+```
+
+### Privasi
+
+Kalau pakai **Gemini/Groq**, isi report (termasuk temuan & secret) dikirim ke provider tersebut untuk dianalisis. Kalau program-mu melarang data keluar ke pihak ketiga, pakai **Ollama** (lokal, tidak ada data keluar) atau jangan nyalakan AI sama sekali. Lihat juga [Disclaimer](#disclaimer-penting-baca-dulu) di atas.
+
 ## Instalasi
 
 ### 1. Install dependensi Python
