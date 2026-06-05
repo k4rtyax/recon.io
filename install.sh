@@ -111,6 +111,12 @@ mkdir -p "$HOME/.local/bin"
 ln -sf "$RECON_DIR/recon.py" "$HOME/.local/bin/recon"
 echo "[+] Symlink: $HOME/.local/bin/recon -> $RECON_DIR/recon.py"
 
+# ── Siapkan .env (opsional, untuk fitur AI) ───────────────────────────
+if [ ! -f "$RECON_DIR/.env" ]; then
+    cp "$RECON_DIR/.env.example" "$RECON_DIR/.env"
+    echo "[+] Dibuat .env dari template (isi GEMINI_API_KEY untuk fitur AI)"
+fi
+
 # ── Source shell yang aktif ───────────────────────────────────────────
 echo ""
 echo "[*] Mendeteksi shell aktif..."
@@ -138,6 +144,12 @@ echo "   recon -d example.com --recon-subs"
 echo "   recon -d example.com --recon-subs --fase urls,js,security"
 echo "   recon --check"
 echo "   recon --list-fase"
+echo ""
+echo " (Opsional) Asisten AI:"
+echo "   1. edit .env  ->  isi GEMINI_API_KEY=..."
+echo "   2. JANGAN commit/share key. .env sudah diabaikan git, hanya kamu yang tahu."
+echo "   3. recon   (tanpa argumen, di terminal)  ->  mode chat AI"
+echo "   recon tetap jalan penuh TANPA key."
 echo ""
 echo " Jika 'recon' belum dikenali, jalankan:"
 if [ -n "$ZSH_VERSION" ] || [[ "$SHELL" == *"zsh"* ]]; then

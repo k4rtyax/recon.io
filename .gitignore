@@ -33,3 +33,8 @@ wordlists/common.txt
 
 # Environment
 .env
+
+# Scope files (spesifik per-user/program, jangan di-commit)
+scope.txt
+scope.csv
+scopes_*.csv

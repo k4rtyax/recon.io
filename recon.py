@@ -104,8 +104,8 @@ def parse_args():
     )
 
     args = parser.parse_args()
-    if not args.check and not args.list_fase and not (args.domain or args.subdomain or args.file):
-        parser.error("one of the arguments -d/--domain -s/--subdomain -f/--file is required")
+    # target boleh kosong: bila tanpa target + terminal interaktif + ada GEMINI_API_KEY,
+    # recon.py masuk mode chat (ditangani di main). Selain itu main yang beri error.
     if args.recon_subs and not args.domain:
         parser.error("--recon-subs hanya bisa digunakan dengan -d/--domain")
     return args
@@ -233,6 +233,19 @@ def main():
             console.print(f"    [bold green]{i:2}.[/bold green] [bold white]{f}[/bold white]")
         console.print()
         sys.exit(0)
+
+    # ── tanpa target: mode chat AI (TTY + ada key) atau error ────
+    if not (args.domain or args.subdomain or args.file):
+        import core.ai as ai
+        if sys.stdin.isatty() and sys.stdout.isatty() and ai.available():
+            ai.chat_session(args.output)
+            sys.exit(0)
+        if ai.available():
+            err("mode chat butuh terminal interaktif. jalankan: recon -d <domain>")
+        else:
+            err("tidak ada target. jalankan: recon -d <domain>")
+            err("(set GEMINI_API_KEY di .env + jalankan di terminal untuk mode chat AI)")
+        sys.exit(1)
 
     # ── tentukan daftar fase ─────────────────────────────────────
     if args.fase:

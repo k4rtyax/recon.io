@@ -12,6 +12,17 @@ Universal web recon framework untuk bug bounty hunting.
 > **Kebutuhan Python**: Proyek ini memerlukan **Python 3.10+** karena menggunakan fitur *union type hinting* modern (`type | None`).
 
 
+## Disclaimer (penting, baca dulu)
+
+Tool ini cuma buat target yang **kamu boleh tes** — punya sendiri, atau program bug bounty/pentest yang udah ngasih izin. Recon di sini **scan aktif** (port scan, fuzzing, dan teman-temannya), jadi nembak target tanpa izin itu **ilegal**, dan itu **tanggung jawab kamu sepenuhnya** — bukan aku, bukan tool-nya.
+
+Fitur AI itu **opsional**. Kalau kamu pasang API key, isi report (termasuk temuan dan secret) bakal dikirim ke Google Gemini buat dianalisis. Jangan dinyalain kalau program-mu nggak ngizinin data keluar ke pihak ketiga.
+
+Mode chat ada cek scope + konfirmasi "saya berwenang" — itu **pagar etika dan pengingat**, bukan tameng keamanan. Bisa di-bypass, dan tetap kamu yang pegang tanggung jawab.
+
+Intinya: **pakai pakai izin dan akal sehat. Sisanya urusanmu.**
+
+
 ## Penggunaan
 
 ```bash

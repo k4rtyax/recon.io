@@ -1,0 +1,411 @@
+"""
+AI assistant (opsional) — Google Gemini via REST API (stdlib, tanpa dependency tambahan).
+
+Dua mode:
+  - attack_suggestions() : saran serangan berprioritas dari hasil recon (flag --ai)
+  - ask()                : tanya-jawab bebas atas hasil recon  (flag --ask "...")
+
+API key dibaca dari env GEMINI_API_KEY (atau GOOGLE_API_KEY). Tidak pernah ditulis
+ke disk maupun di-commit. Bila key tidak ada, fitur dilewati dengan aman.
+
+Override via env:
+  RECON_AI_MODEL      (default: gemini-2.5-flash)
+  RECON_AI_TIMEOUT    (default: 120 detik)
+  RECON_AI_MAX_CHARS  (default: 100000 — batas konteks report yang dikirim)
+"""
+
+import os
+import ssl
+import json
+import urllib.request
+import urllib.error
+from datetime import datetime
+
+from rich.markup import escape
+from core.utils import info, warn, err, section, console, run as exec_cmd, get_working_url
+from config import FASE_LIST, TOOLS, DEFAULT_USER_AGENT
+from core.scope import Scope
+
+_API_BASE  = "https://generativelanguage.googleapis.com/v1beta/models"
+_MODEL     = os.environ.get("RECON_AI_MODEL", "gemini-2.5-flash")
+_TIMEOUT    = int(os.environ.get("RECON_AI_TIMEOUT", "120"))
+_MAX_CHARS  = int(os.environ.get("RECON_AI_MAX_CHARS", "100000"))
+_MAX_TOKENS = int(os.environ.get("RECON_AI_MAX_TOKENS", "4096"))
+
+
+def _api_key() -> str | None:
+    return os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+
+
+def _ssl_context() -> ssl.SSLContext:
+    """SSL context dengan CA bundle certifi (hindari CERTIFICATE_VERIFY_FAILED di macOS)."""
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        return ssl.create_default_context()
+
+
+def available() -> bool:
+    return bool(_api_key())
+
+
+def resolve_target_dir(output_dir: str, target: str) -> str:
+    """Tentukan folder output target untuk run hari ini (samakan dengan runner)."""
+    date_tag    = datetime.now().strftime("recon_%d_%m_%Y")
+    folder_name = target.replace("*.", "").replace("/", "_")
+    return os.path.join(output_dir, folder_name, date_tag)
+
+
+def _load_report(target_dir: str) -> str | None:
+    """Baca report_*.txt sebagai konteks untuk AI."""
+    report_dir = os.path.join(target_dir, "report")
+    if not os.path.isdir(report_dir):
+        return None
+    txts = sorted(
+        f for f in os.listdir(report_dir)
+        if f.startswith("report_") and f.endswith(".txt")
+    )
+    if not txts:
+        return None
+    with open(os.path.join(report_dir, txts[0])) as f:
+        return f.read()[:_MAX_CHARS]
+
+
+def _call_gemini(system: str, user: str) -> str | None:
+    key = _api_key()
+    if not key:
+        warn("GEMINI_API_KEY tidak di-set — fitur AI dilewati (set di .env)")
+        return None
+
+    url  = f"{_API_BASE}/{_MODEL}:generateContent?key={key}"
+    body = {
+        "system_instruction": {"parts": [{"text": system}]},
+        "contents": [{"role": "user", "parts": [{"text": user}]}],
+        "generationConfig": {"temperature": 0.4, "maxOutputTokens": _MAX_TOKENS},
+    }
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=_TIMEOUT, context=_ssl_context()) as resp:
+            payload = json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        body = e.read().decode(errors="replace")
+        try:
+            msg = json.loads(body)["error"]["message"]
+        except Exception:
+            msg = body[:200]
+        if e.code == 429:
+            err("Gemini API: kuota habis / rate limit (429). Coba lagi nanti atau cek billing.")
+        else:
+            err(f"Gemini API error {e.code}: {msg[:200]}")
+        return None
+    except Exception as e:
+        err(f"Gemini API gagal: {e}")
+        return None
+
+    try:
+        return payload["candidates"][0]["content"]["parts"][0]["text"].strip()
+    except (KeyError, IndexError, AttributeError):
+        # kemungkinan terfilter safety / respon kosong
+        warn(f"Gemini tidak mengembalikan teks (mungkin terfilter): {json.dumps(payload)[:200]}")
+        return None
+
+
+_SYS_ATTACK = (
+    "Kamu pentester web / bug bounty hunter senior. Berdasarkan laporan recon di bawah, "
+    "susun rencana serangan BERPRIORITAS dan actionable dalam Bahasa Indonesia.\n"
+    "Untuk tiap temuan prioritas, jelaskan: (1) kenapa menarik, (2) langkah verifikasi/tes "
+    "manual yang konkret, (3) tool / nuclei template / payload yang relevan. "
+    "Rujuk host, URL, atau parameter spesifik dari data. Ringkas dan padat, tanpa basa-basi. "
+    "Tandai jelas mana yang high-impact. Jangan mengarang temuan yang tidak ada di data."
+)
+
+_SYS_ASK = (
+    "Kamu asisten recon untuk bug bounty. Jawab pertanyaan user HANYA berdasarkan laporan "
+    "recon yang diberikan, dalam Bahasa Indonesia. Spesifik — rujuk host/URL/temuan nyata "
+    "dari data. Bila data tidak cukup untuk menjawab, katakan terus terang."
+)
+
+
+def attack_suggestions(target: str, target_dir: str):
+    report = _load_report(target_dir)
+    if not report:
+        warn("report tidak ditemukan, saran serangan AI dilewati")
+        return
+
+    info(f"meminta saran serangan dari Gemini ({_MODEL})...")
+    answer = _call_gemini(_SYS_ATTACK, f"Target: {target}\n\n=== LAPORAN RECON ===\n{report}")
+    if not answer:
+        return
+
+    out = os.path.join(target_dir, "report", "ai_attack_suggestions.md")
+    with open(out, "w") as f:
+        f.write(f"# AI Attack Suggestions — {target}\n\n")
+        f.write(f"*Dihasilkan {datetime.now():%Y-%m-%d %H:%M} via Gemini ({_MODEL}). "
+                f"Wajib verifikasi manual sebelum eksploitasi.*\n\n")
+        f.write(answer + "\n")
+
+    section(f"AI — saran serangan ({target})")
+    console.print(escape(answer))
+    info(f"saran serangan disimpan: {out}")
+
+
+def ask(target: str, target_dir: str, question: str):
+    report = _load_report(target_dir)
+    if not report:
+        err(f"report untuk {target} tidak ditemukan di {target_dir} — jalankan recon dulu")
+        return
+
+    answer = _call_gemini(
+        _SYS_ASK,
+        f"Target: {target}\n\n=== LAPORAN RECON ===\n{report}\n\n=== PERTANYAAN ===\n{question}",
+    )
+    if not answer:
+        return
+
+    section(f"AI — jawaban ({target})")
+    console.print(escape(answer))
+
+
+# ── mode percakapan ──────────────────────────────────────────────────
+
+_SYS_CHAT = (
+    "Kamu asisten recon CLI untuk bug bounty, berbahasa Indonesia. "
+    "Untuk SETIAP pesan user, balas HANYA satu objek JSON valid (tanpa code fence, "
+    "tanpa teks lain) dengan skema:\n"
+    '{"action":"set_scope"|"run"|"answer"|"chat",'
+    '"target":<domain atau null>,"fases":<array fase atau null>,'
+    '"scope":<teks scope / path file atau null>,"program":<link program atau null>,'
+    '"message":<teks untuk user>}\n'
+    "- action=set_scope: user memberi SCOPE (pola domain, atau path file .csv/.txt) "
+    "dan/atau LINK PROGRAM. Di 'scope': jika user memberi PATH file, salin path apa adanya; "
+    "jika user memberi pola, NORMALKAN ke format kanonik — satu pola dipisah koma, awali '!' "
+    "untuk yang DIKECUALIKAN (contoh: user bilang '*.example.com kecuali blog' -> "
+    "'*.example.com, !blog.example.com'). Taruh link di 'program'. Di 'message' rangkum "
+    "scope-nya dan tanya target mana yang mau di-recon.\n"
+    "- action=run  : user ingin MENJALANKAN recon pada sebuah target. Ekstrak domain & fase. "
+    "Kamu TIDAK menjalankan apa pun — hanya mengusulkan. ATURAN: recon hanya boleh untuk "
+    "target yang ada di dalam scope. Jika scope BELUM diset, JANGAN action=run — pakai "
+    "action=chat untuk meminta scope + link program dulu.\n"
+    "- action=answer: user bertanya tentang hasil recon. Jawab di 'message' dari KONTEKS LAPORAN.\n"
+    "- action=chat  : sapaan / klarifikasi / minta scope. Isi 'message' seperlunya.\n"
+    f"Fase valid: {', '.join(FASE_LIST)}. fases=null berarti semua fase.\n"
+    "STRATEGI SCOPE: jika scope berisi wildcard (*.domain), boleh enumerate root lalu "
+    "filter ke scope. Jika scope hanya daftar host SPESIFIK (tanpa wildcard), JANGAN "
+    "sarankan fase 'subdomain' — recon tiap host langsung (fase web: urls, js, ports, "
+    "fingerprint, security). Mengetes subdomain di luar daftar = di luar scope.\n"
+    "Jangan memakai emoji."
+)
+
+_SYS_TARGET = (
+    "Kamu asisten recon. Diberi info teknis singkat sebuah target, beri ringkasan 2-3 "
+    "kalimat (jenis situs & teknologi) lalu sarankan fase recon paling relevan dari: "
+    f"{', '.join(FASE_LIST)}. Bahasa Indonesia, ringkas, tanpa emoji."
+)
+
+
+def _clean_target(t: str) -> str:
+    t = (t or "").strip().replace("http://", "").replace("https://", "")
+    if t.startswith("*."):
+        t = t[2:]
+    return t.rstrip("/")
+
+
+def _parse_intent(raw: str) -> dict | None:
+    s = raw.strip()
+    if s.startswith("```"):
+        s = s.strip("`")
+        if s[:4].lower() == "json":
+            s = s[4:]
+    i, j = s.find("{"), s.rfind("}")
+    if i == -1 or j == -1:
+        return None
+    try:
+        return json.loads(s[i:j + 1])
+    except Exception:
+        return None
+
+
+def _fetch_context(target: str) -> str:
+    """Kenalan singkat target via curl: status, server, title, deteksi SPA. Sentuhan ringan."""
+    import re
+    url = get_working_url(target)
+    _, head, _ = exec_cmd(
+        [TOOLS["curl"], "-sIL", "-A", DEFAULT_USER_AGENT, "--max-time", "10", url], timeout=12)
+    _, body, _ = exec_cmd(
+        [TOOLS["curl"], "-sL", "-A", DEFAULT_USER_AGENT, "--max-time", "10", url], timeout=12)
+
+    status = server = ""
+    for line in head.splitlines():
+        low = line.lower()
+        if low.startswith("http/"):
+            status = line.strip()
+        elif low.startswith("server:"):
+            server = line.split(":", 1)[1].strip()
+
+    m = re.search(r"<title[^>]*>(.*?)</title>", body, re.I | re.S)
+    title = re.sub(r"\s+", " ", m.group(1)).strip()[:120] if m else ""
+    scripts = len(re.findall(r"<script", body, re.I))
+    spa = bool(re.search(r'id=["\'](root|app|__next)["\']', body, re.I)) and scripts >= 3
+    hints = sorted({kw for kw in
+                    ("react", "vue", "angular", "next", "nuxt", "svelte", "webpack")
+                    if kw in body.lower()})
+
+    line = (f"url={url} | status={status or '?'} | server={server or '?'} | "
+            f"title={title or '-'} | spa={'ya' if spa else 'tidak'}")
+    if hints:
+        line += f" | hint={','.join(hints)}"
+    return line
+
+
+def _summarize_target(target: str, ctx: str) -> str | None:
+    return _call_gemini(_SYS_TARGET, f"Target: {target}\nInfo teknis: {ctx}")
+
+
+def _write_authorization(target_dir: str, target: str, program: str, scope: "Scope | None"):
+    os.makedirs(target_dir, exist_ok=True)
+    path = os.path.join(target_dir, "authorization.txt")
+    with open(path, "w") as f:
+        f.write(f"target  : {target}\n")
+        f.write(f"program : {program or '(tidak dinyatakan)'}\n")
+        f.write(f"scope   : {scope.summary() if scope else '(tidak diset)'}\n")
+        f.write(f"waktu   : {datetime.now():%Y-%m-%d %H:%M:%S}\n")
+        f.write("catatan : otorisasi DINYATAKAN oleh user via mode chat. "
+                "recon.io tidak memverifikasi klaim ini.\n")
+    return path
+
+
+def chat_session(output_dir: str):
+    """Mode percakapan scope-first: AI mengusulkan, user menyetujui sebelum recon."""
+    if not available():
+        warn("GEMINI_API_KEY tidak di-set — mode chat tidak tersedia (set di .env)")
+        return
+
+    section("recon.io — asisten AI")
+    console.print("[bold]Mau recon apa hari ini?[/bold] Sebutkan dulu scope + link program-nya.")
+    console.print("[dim]   scope bisa: pola domain (mis. *.example.com kecuali blog), atau path file .csv/.txt[/dim]")
+    console.print("[dim]   ketik 'keluar' untuk berhenti[/dim]\n")
+
+    history: list[str] = []
+    scope: Scope | None = None
+    program: str = ""
+    cur_target: str | None = None
+    cur_dir: str | None = None
+
+    while True:
+        try:
+            user = console.input("[bold cyan]> [/bold cyan]").strip()
+        except (EOFError, KeyboardInterrupt):
+            console.print()
+            break
+        if not user:
+            continue
+        if user.lower() in {"exit", "quit", "keluar", "q"}:
+            console.print("[dim]selesai. semua hasil tersimpan di folder output.[/dim]")
+            break
+
+        ctx = f"\n\n[scope aktif: {scope.summary() if scope else 'BELUM diset'}]"
+        if cur_dir:
+            rep = _load_report(cur_dir)
+            if rep:
+                ctx += f"\n\n=== LAPORAN RECON ({cur_target}) ===\n{rep}"
+        hist = "\n".join(history[-6:])
+        raw = _call_gemini(_SYS_CHAT, f"{hist}\nUSER: {user}{ctx}")
+        if not raw:
+            continue
+
+        intent = _parse_intent(raw)
+        if not intent:
+            console.print(f"[bold green][AI][/bold green] {escape(raw)}")
+            history += [f"USER: {user}", f"AI: {raw[:300]}"]
+            continue
+
+        action = intent.get("action", "chat")
+        msg    = intent.get("message", "").strip()
+
+        # ── set scope ────────────────────────────────────────────
+        if action == "set_scope":
+            raw_scope = (intent.get("scope") or "").strip()
+            if intent.get("program"):
+                program = intent["program"].strip()
+            if raw_scope:
+                try:
+                    scope = (Scope.from_file(raw_scope)
+                             if os.path.isfile(raw_scope) else Scope.from_text(raw_scope))
+                except Exception as exc:
+                    err(f"gagal membaca scope: {exc}")
+                    continue
+                section("scope ditetapkan")
+                console.print(scope.describe(), markup=False)
+                if program:
+                    console.print(f"[dim]program: {escape(program)}[/dim]")
+            if msg:
+                console.print(f"[bold green][AI][/bold green] {escape(msg)}")
+
+        # ── run (wajib in-scope) ─────────────────────────────────
+        elif action == "run":
+            if scope is None:
+                console.print("[bold green][AI][/bold green] Set scope + link program dulu ya sebelum recon.")
+                history += [f"USER: {user}", "AI: minta scope"]
+                continue
+            target = _clean_target(intent.get("target") or "")
+            if not target:
+                console.print("[bold green][AI][/bold green] Target mana yang mau di-recon?")
+                continue
+
+            in_scope, reason = scope.check(target)
+            if not in_scope:
+                console.print(f"[bold red][AI][/bold red] {escape(target)} DI LUAR scope ({escape(reason)}). Tidak dijalankan.")
+                history += [f"USER: {user}", f"AI: tolak out-of-scope {target}"]
+                continue
+
+            fases = [f for f in (intent.get("fases") or []) if f in FASE_LIST] or list(FASE_LIST)
+
+            # Scope non-wildcard = host spesifik: enumerasi subdomain TIDAK sah
+            # (sub yang ditemukan kemungkinan out-of-scope) -> lewati fase subdomain.
+            if "subdomain" in fases and not scope.is_wildcard_match(target):
+                fases = [f for f in fases if f != "subdomain"]
+                info(f"{target}: host spesifik (scope non-wildcard) — fase subdomain dilewati")
+
+            info(f"kenalan singkat dengan {target}...")
+            tctx = _fetch_context(target)
+            console.print(f"[dim]target: {escape(tctx)}[/dim]")
+            summary = _summarize_target(target, tctx)
+            if summary:
+                console.print(f"[bold green][AI][/bold green] {escape(summary)}")
+
+            console.print(
+                f"\n[bold]rencana:[/bold] target=[cyan]{target}[/cyan]  "
+                f"fase=[cyan]{', '.join(fases)}[/cyan]  output=[cyan]{output_dir}[/cyan]"
+            )
+            console.print(f"[green][scope] in-scope ({reason})[/green]")
+            console.print("[bold yellow][!] dengan melanjutkan, kamu menyatakan BERWENANG menguji target ini.[/bold yellow]")
+            ans = console.input("[?] Saya berwenang & jalankan recon sekarang? [y/N]: ").strip().lower()
+            if ans == "y":
+                from core.runner import run_target
+                try:
+                    run_target(target=target, output_dir=output_dir, fases=fases)
+                except KeyboardInterrupt:
+                    console.print()
+                    warn("recon dihentikan (Ctrl+C)")
+                except Exception as exc:
+                    err(f"recon gagal: {exc}")
+                else:
+                    cur_target = target
+                    cur_dir    = resolve_target_dir(output_dir, target)
+                    auth = _write_authorization(cur_dir, target, program, scope)
+                    info(f"otorisasi dicatat: {auth}")
+                    console.print("\n[bold green][AI][/bold green] Recon beres. Tanya hasilnya, atau minta 'analisis serangan'.")
+            else:
+                console.print("[bold green][AI][/bold green] Oke, dibatalkan.")
+
+        # ── answer / chat ────────────────────────────────────────
+        else:
+            console.print(f"[bold green][AI][/bold green] {escape(msg or raw)}")
+
+        history += [f"USER: {user}", f"AI: {json.dumps(intent, ensure_ascii=False)[:400]}"]
