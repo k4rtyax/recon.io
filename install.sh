@@ -213,8 +213,6 @@ case "$ai_choice" in
         ;;
 esac
 echo ""
-echo "   JANGAN commit/share key. .env sudah diabaikan git."
-echo "   recon tetap jalan penuh TANPA key."
 echo ""
 echo " Jika 'recon' belum dikenali, jalankan:"
 if [ -n "$ZSH_VERSION" ] || [[ "$SHELL" == *"zsh"* ]]; then
