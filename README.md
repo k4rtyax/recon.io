@@ -183,19 +183,28 @@ recon.io punya asisten AI opsional. **Tanpa ini, semua recon jalan penuh** — A
 - **Scope-first** — AI hanya boleh recon target **di dalam scope**. Out-of-scope ditolak sebelum jalan. Tiap scan butuh konfirmasi "saya berwenang", dan otorisasi dicatat ke `authorization.txt`.
 - **Saran serangan & tanya-jawab** — analisis report: prioritas temuan + cara verifikasi manual.
 
-### Provider (pilih satu, set di `.env`)
+### Provider (pilih satu)
 
-Default Gemini. Lihat `.env.example` untuk contoh lengkap.
+Gunakan `recon --setup-ai` untuk set atau ganti provider kapan saja. Lihat `.env.example` untuk config manual.
 
-| Provider | Setup singkat |
-| -------- | ------------- |
-| **Gemini** (default) | `GEMINI_API_KEY=...` (gratis, ai.google.dev) |
-| **Groq** | `RECON_AI_PROVIDER=openai` + `RECON_AI_BASE_URL=https://api.groq.com/openai/v1` + `RECON_AI_MODEL=llama-3.3-70b-versatile` + `GROQ_API_KEY=...` (gratis, cepat) |
-| **Ollama** (lokal) | `RECON_AI_PROVIDER=openai` + `RECON_AI_BASE_URL=http://localhost:11434/v1` + `RECON_AI_MODEL=llama3.1` (gratis, offline, tanpa key) |
+| Provider | Keterangan |
+| -------- | ---------- |
+| **Gemini** (default) | Gratis — [ai.google.dev](https://ai.google.dev) |
+| **Groq** | Gratis, cepat — [console.groq.com](https://console.groq.com) |
+| **OpenRouter** | Akses banyak model — [openrouter.ai](https://openrouter.ai) |
+| **OpenAI** | GPT-4o dll — [platform.openai.com](https://platform.openai.com) |
+| **Mistral** | Gratis tier tersedia — [console.mistral.ai](https://console.mistral.ai) |
+| **Together.ai** | Banyak model open-source — [api.together.xyz](https://api.together.xyz) |
+| **Perplexity** | Model dengan web search — [perplexity.ai](https://www.perplexity.ai) |
+| **Ollama** | Lokal, offline, tanpa key — [ollama.ai](https://ollama.ai) |
+| **LM Studio** | Lokal, GUI friendly — [lmstudio.ai](https://lmstudio.ai) |
+| **Provider lain** | Apapun yang OpenAI-compatible — isi BASE_URL + MODEL + API_KEY |
 
 ### Cara pakai
 
 ```bash
+recon --setup-ai            # set atau ganti provider AI
+
 recon                       # mode chat (butuh terminal + key di .env)
   > ini scope-nya: scope.csv
   > rekomen?
@@ -211,35 +220,22 @@ recon -f targets.txt --scope scope.csv                # skip target out-of-scope
 
 ### Privasi
 
-Kalau pakai **Gemini/Groq**, isi report (termasuk temuan & secret) dikirim ke provider tersebut untuk dianalisis. Kalau program-mu melarang data keluar ke pihak ketiga, pakai **Ollama** (lokal, tidak ada data keluar) atau jangan nyalakan AI sama sekali. Lihat juga [Disclaimer](#disclaimer-penting-baca-dulu) di atas.
+Provider **cloud** (Gemini, Groq, OpenRouter, OpenAI, Mistral, Together.ai, Perplexity) akan menerima isi report — termasuk temuan dan secret — untuk dianalisis. Kalau program-mu melarang data keluar ke pihak ketiga, pakai **Ollama** atau **LM Studio** (lokal, tidak ada data keluar), atau jangan nyalakan AI sama sekali. Lihat juga [Disclaimer](#disclaimer-penting-baca-dulu) di atas.
 
 ## Instalasi
 
-### 1. Install dependensi Python
+Satu script untuk semua OS (Linux & macOS). Deteksi distro otomatis.
 
 ```bash
-pip install -r requirements.txt
-```
-
-### 2. Install semua tools recon
-
-Pilih sesuai OS:
-
-```bash
-# Linux (Kali, Ubuntu, Debian)
 chmod +x install.sh && ./install.sh
-
-# Arch Linux / Manjaro
-chmod +x install-arch.sh && ./install-arch.sh
-
-# macOS
-chmod +x install-mac.sh && ./install-mac.sh
 ```
 
-Script ini menginstall: nmap, subfinder, httpx, nuclei, ffuf, katana, dan tools lainnya secara otomatis. Wordlist juga diunduh otomatis jika belum ada di sistem.
+Script menginstall: nmap, subfinder, httpx, nuclei, ffuf, katana, dan semua tools lainnya. Wordlist diunduh otomatis jika belum ada. Di akhir instalasi ada wizard singkat untuk set provider AI.
+
+> **Windows**: tidak didukung secara native. Gunakan [WSL2](https://docs.microsoft.com/windows/wsl/install) lalu jalankan script di atas.
 
 ```bash
-# 3. Muat ulang konfigurasi shell
+# Muat ulang konfigurasi shell setelah instalasi
 source ~/.bashrc  # atau source ~/.zshrc
 ```
 

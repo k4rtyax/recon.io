@@ -384,16 +384,17 @@ def _setup_ai_wizard():
     console.print("    [bold]2)[/bold] Groq        (gratis, cepat — console.groq.com)")
     console.print("    [bold]3)[/bold] OpenRouter  (openrouter.ai)")
     console.print("    [bold]4)[/bold] Ollama      (lokal, tanpa key)")
-    console.print("    [bold]5)[/bold] Nonaktifkan AI")
-    console.print("    [bold]6)[/bold] Batal\n")
+    console.print("    [bold]5)[/bold] Provider lain  (OpenAI, Mistral, Together.ai, ...)")
+    console.print("    [bold]6)[/bold] Nonaktifkan AI")
+    console.print("    [bold]7)[/bold] Batal\n")
 
     try:
-        choice = console.input("  Pilih [1-6] (default: 6): ").strip() or "6"
+        choice = console.input("  Pilih [1-7] (default: 7): ").strip() or "7"
     except (EOFError, KeyboardInterrupt):
         console.print()
         return
 
-    if choice == "6":
+    if choice == "7":
         info("setup dibatalkan")
         return
 
@@ -475,8 +476,93 @@ def _setup_ai_wizard():
         info("Ollama dikonfigurasi")
 
     elif choice == "5":
+        from core import menu as kbmenu
+        _PROV = [
+            ("OpenAI",       "https://api.openai.com/v1",           "gpt-4o-mini",                           True),
+            ("Mistral",      "https://api.mistral.ai/v1",           "mistral-small-latest",                  True),
+            ("Together.ai",  "https://api.together.xyz/v1",         "meta-llama/Llama-3-70b-chat-hf",        True),
+            ("Perplexity",   "https://api.perplexity.ai",           "llama-3.1-sonar-large-128k-online",     True),
+            ("LM Studio",    "http://localhost:1234/v1",            "llama3.2",                              False),
+            ("Isi manual",   "",                                    "",                                      True),
+        ]
+        labels = [
+            "OpenAI         (api.openai.com)",
+            "Mistral        (api.mistral.ai)",
+            "Together.ai    (api.together.xyz)",
+            "Perplexity     (api.perplexity.ai)",
+            "LM Studio      (localhost:1234, tanpa key)",
+            "Isi manual",
+        ]
+        picked = kbmenu.pick("  Pilih provider:", labels)
+        if picked is None:
+            return
+        pidx = labels.index(picked)
+        pname, purl, pmodel, pneeds_key = _PROV[pidx]
+
+        if pname == "LM Studio":
+            try:
+                custom_model = console.input(f"  MODEL (default: {pmodel}): ").strip()
+            except (EOFError, KeyboardInterrupt):
+                console.print(); return
+            if custom_model:
+                pmodel = custom_model
+            ok, msg = _validate_key("ollama", "", purl)
+            if not ok:
+                err(f"gagal: {msg}")
+                if not _ask_save_anyway():
+                    return
+            pkey = ""
+        elif pname == "Isi manual":
+            try:
+                purl   = console.input("  BASE_URL (mis. https://api.openai.com/v1): ").strip()
+                pmodel = console.input("  MODEL: ").strip()
+            except (EOFError, KeyboardInterrupt):
+                console.print(); return
+            if not purl:
+                warn("base_url kosong, setup dibatalkan"); return
+            try:
+                pkey = console.input("  API_KEY (kosong jika tidak perlu): ").strip()
+            except (EOFError, KeyboardInterrupt):
+                console.print(); return
+            if pkey:
+                ok, msg = _validate_key("openai", pkey, purl)
+                if not ok:
+                    err(f"gagal: {msg}")
+                    if not _ask_save_anyway():
+                        return
+            else:
+                ok, msg = _validate_key("ollama", "", purl)
+                if not ok:
+                    err(f"gagal: {msg}")
+                    if not _ask_save_anyway():
+                        return
+        else:
+            try:
+                pkey = console.input(f"  API_KEY untuk {pname}: ").strip()
+            except (EOFError, KeyboardInterrupt):
+                console.print(); return
+            if not pkey:
+                warn("key kosong, setup dibatalkan"); return
+            ok, msg = _validate_key("openai", pkey, purl)
+            if not ok:
+                err(f"gagal: {msg}")
+                if not _ask_save_anyway():
+                    return
+
+        for k in ("GEMINI_API_KEY", "GOOGLE_API_KEY", "GROQ_API_KEY", "OPENROUTER_API_KEY"):
+            _comment_val(k)
+        _set_val("RECON_AI_PROVIDER", "openai")
+        _set_val("RECON_AI_BASE_URL", purl)
+        _set_val("RECON_AI_MODEL", pmodel)
+        if pkey:
+            _set_val("RECON_AI_KEY", pkey)
+        else:
+            _comment_val("RECON_AI_KEY")
+        info(f"{pname} dikonfigurasi")
+
+    elif choice == "6":
         for k in ("GEMINI_API_KEY", "GOOGLE_API_KEY", "GROQ_API_KEY", "OPENROUTER_API_KEY",
-                  "RECON_AI_PROVIDER", "RECON_AI_BASE_URL", "RECON_AI_MODEL"):
+                  "RECON_AI_PROVIDER", "RECON_AI_BASE_URL", "RECON_AI_MODEL", "RECON_AI_KEY"):
             _comment_val(k)
         info("AI dinonaktifkan")
 
