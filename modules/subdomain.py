@@ -132,6 +132,7 @@ def run(target: str, target_dir: str):
             [f"# Wildcard IPs untuk {target}"] + sorted(wc_ips),
         )
         subdomains, dropped = _filter_dns_wildcards(subdomains, wc_ips)
+        subdomains = sorted(subdomains)
         if dropped:
             info(f"dibuang {dropped} subdomain yang hanya resolve ke wildcard IP")
 

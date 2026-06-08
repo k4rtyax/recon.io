@@ -169,14 +169,15 @@ class Scope:
         return False, "tidak cocok pola in-scope mana pun"
 
     def is_wildcard_match(self, host: str) -> bool:
-        """True bila host in-scope LEWAT pola wildcard (*.x) → enumerasi subdomain sah.
-        False bila hanya cocok pola exact (host spesifik) atau di luar scope."""
+        """True bila host in-scope LEWAT pola wildcard → enumerasi subdomain sah.
+        Mencakup: *.example.com, example.*.google.com, example.*
+        False bila hanya cocok pola exact atau di luar scope."""
         h = _norm(host)
         for d in self.deny:
             if _match(d, h):
                 return False
         for a in self.allow:
-            if a.strip().startswith("*.") and _match(a, h):
+            if "*" in a and _match(a, h):
                 return True
         return False
 
