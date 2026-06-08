@@ -53,6 +53,8 @@ class Report:
         return {
             "alive_sub":    _count(f"{d}/subdomain/alive_subdomains.txt"),
             "total_sub":    _count(f"{d}/subdomain/all_subdomains.txt"),
+            "catchall_sub": _count(f"{d}/subdomain/catchall_subdomains.txt"),
+            "wildcard_dns": os.path.exists(f"{d}/subdomain/wildcard_dns.txt"),
             "open_ports":   _count(f"{d}/ports/open_ports.txt"),
             "total_urls":   _count(f"{d}/urls/all_urls.txt"),
             "categorized":  _count(f"{d}/urls/categorized.txt"),
@@ -70,6 +72,8 @@ class Report:
         s            = self.get_stats()
         alive_sub    = s["alive_sub"]
         total_sub    = s["total_sub"]
+        catchall_sub = s["catchall_sub"]
+        wildcard_dns = s["wildcard_dns"]
         open_ports   = s["open_ports"]
         total_urls   = s["total_urls"]
         categorized  = s["categorized"]
@@ -118,6 +122,8 @@ class Report:
 |--------|------:|
 | Subdomain ditemukan | {total_sub} |
 | Subdomain aktif | {alive_sub} |
+| Wildcard DNS | {"terdeteksi ⚠" if wildcard_dns else "tidak ada"} |
+| Catch-all subdomain | {catchall_sub} |
 | Open ports | {open_ports} |
 | Total URLs | {total_urls} |
 | URL terkategorisasi | {categorized} |
@@ -152,6 +158,8 @@ Tanggal  : {self.started.strftime('%Y-%m-%d %H:%M')}
 RINGKASAN METRIK
   Subdomain ditemukan : {total_sub}
   Subdomain aktif     : {alive_sub}
+  Wildcard DNS        : {"terdeteksi" if wildcard_dns else "tidak ada"}
+  Catch-all subdomain : {catchall_sub}
   Open ports          : {open_ports}
   Total URLs          : {total_urls}
   URL terkategorisasi : {categorized}
@@ -174,14 +182,24 @@ TEMUAN PRIORITAS
 
     def fase_subdomain(self):
         d = self.target_dir
-        # Gunakan info file jika ada, fallback ke clean domain file
         info_file = f"{d}/subdomain/alive_subdomains_info.txt"
         if os.path.exists(info_file) and _count(info_file) > 0:
             alive = self._read_head(info_file)
         else:
             alive = self._read_head(f"{d}/subdomain/alive_subdomains.txt")
-            
-        md  = f"**Alive subdomains**\n\n```\n{alive}\n```\n"
+
+        md = f"**Alive subdomains**\n\n```\n{alive}\n```\n"
+
+        wc_file = f"{d}/subdomain/wildcard_dns.txt"
+        if os.path.exists(wc_file):
+            wc_ips = self._read_head(wc_file, 5)
+            md += f"\n**Wildcard DNS terdeteksi** — subdomain berikut mungkin false positive:\n\n```\n{wc_ips}\n```\n"
+
+        catchall_file = f"{d}/subdomain/catchall_subdomains.txt"
+        if os.path.exists(catchall_file) and _count(catchall_file) > 0:
+            catchall = self._read_head(catchall_file, 10)
+            md += f"\n**Catch-all subdomains** (respons identik, dipisah dari alive):\n\n```\n{catchall}\n```\n"
+
         self.add_section("Fase 1: Subdomain Enumeration", md)
 
     def fase_dns(self):

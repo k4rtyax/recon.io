@@ -2,10 +2,12 @@
 Scope matcher — menentukan apakah sebuah host boleh (in-scope) dites.
 
 Aturan pola (satu per baris / item):
-  example.com        → exact, hanya host itu
-  *.example.com      → apex + semua subdomain (a.example.com, a.b.example.com, example.com)
-  !blog.example.com  → DIKECUALIKAN (out of scope), menang atas pola allow
-  !*.dev.example.com → kecualikan seluruh cabang dev
+  example.com            → exact, hanya host itu
+  *.example.com          → apex + semua subdomain (a.example.com, a.b.example.com, example.com)
+  example.*.google.com   → middle wildcard (example.us.google.com, example.eu.google.com)
+  example.*              → TLD wildcard (example.com, example.co.id, example.de)
+  !blog.example.com      → DIKECUALIKAN (out of scope), menang atas pola allow
+  !*.dev.example.com     → kecualikan seluruh cabang dev
 
 Default-deny: host yang tidak cocok pola allow mana pun = out of scope.
 Bila scope KOSONG (tak ada pola allow), check() mengembalikan (True, "scope tidak diset")
@@ -17,6 +19,7 @@ Bukan kontrol keamanan: ini pagar etis & penangkap scope, bukan penegak otorisas
 from __future__ import annotations
 
 import csv
+import fnmatch as _fnmatch
 
 # Tipe aset yang didukung recon.io (web/domain). Sisanya dilewati.
 _WEB_TYPES = {"url", "wildcard", "domain", "web", ""}
@@ -39,12 +42,16 @@ def _norm(host: str) -> str:
 
 def _match(pattern: str, host: str) -> bool:
     p = pattern.strip().lower().rstrip(".")
-    if not p:
+    if not p or not host:
         return False
+    if "*" not in p:
+        return host == p
     if p.startswith("*."):
         base = p[2:]
-        return host == base or host.endswith("." + base)
-    return host == p
+        # apex sendiri + semua subdomain (berapapun kedalamannya)
+        return host == base or _fnmatch.fnmatch(host, p)
+    # middle wildcard (example.*.google.com) atau TLD wildcard (example.*)
+    return _fnmatch.fnmatch(host, p)
 
 
 def _find_col(fieldnames, candidates) -> str | None:

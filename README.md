@@ -108,9 +108,11 @@ Lihat `.env.example` untuk daftar lengkap variabel yang tersedia.
         │   ├── alterx_permutations.txt
         │   ├── resolved_permutations.txt
         │   ├── all_subdomains.txt
+        │   ├── wildcard_dns.txt          (jika wildcard DNS terdeteksi)
         │   ├── httpx_alive.json
         │   ├── alive_subdomains.txt
-        │   └── alive_subdomains_info.txt
+        │   ├── alive_subdomains_info.txt
+        │   └── catchall_subdomains.txt   (jika HTTP catch-all terdeteksi)
         ├── dns/
         │   ├── whois.txt
         │   ├── dns_records.txt
