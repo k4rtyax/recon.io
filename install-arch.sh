@@ -1,31 +1,28 @@
 #!/bin/bash
-# install-mac.sh — Setup semua tools recon.io (macOS)
-
-set -e
+# install-arch.sh — Setup semua tools recon.io (Arch Linux / Manjaro)
 
 RECON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# ── Homebrew ──────────────────────────────────────────────────────────
-if ! command -v brew &>/dev/null; then
-    echo "[!] Homebrew tidak ditemukan. Menginstall Homebrew..."
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    # Tambah brew ke PATH untuk sesi ini
-    if [[ -f "/opt/homebrew/bin/brew" ]]; then
-        eval "$(/opt/homebrew/bin/brew shellenv)"
-    elif [[ -f "/usr/local/bin/brew" ]]; then
-        eval "$(/usr/local/bin/brew shellenv)"
-    fi
+# Nonaktifkan set -e agar langkah opsional tidak abort script
+set +e
+
+# ── Pacman ───────────────────────────────────────────────────────────
+if ! command -v pacman &>/dev/null; then
+    echo "[!] Script ini untuk Arch Linux / Manjaro (pacman). Gunakan install.sh untuk distro lain."
+    exit 1
 fi
 
-echo "[*] Update Homebrew..."
-brew update &>/dev/null
+echo "[*] Update database paket..."
+sudo pacman -Sy --noconfirm &>/dev/null
 
-echo "[*] Install tools sistem (nmap, curl, whois, git)..."
-brew install nmap curl whois git &>/dev/null
-# ── Go ──────────────────────────────────────────────────────────────
+echo "[*] Install tools sistem (nmap, curl, whois, bind, python-pip, git)..."
+# 'bind' menyediakan 'dig' dan 'nslookup' di Arch
+sudo pacman -S --noconfirm --needed nmap curl whois bind python-pip git 2>/dev/null
+
+# ── Go ───────────────────────────────────────────────────────────────
 if ! command -v go &>/dev/null; then
-    echo "[!] Go tidak ditemukan. Install via Homebrew..."
-    brew install go &>/dev/null
+    echo "[!] Go tidak ditemukan. Install via pacman..."
+    sudo pacman -S --noconfirm --needed go 2>/dev/null
 fi
 
 export GOPATH="$HOME/go"
@@ -43,23 +40,32 @@ for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
     fi
 done
 
-# ── Python packages ──────────────────────────────────────────────────
+# ── Python packages ───────────────────────────────────────────────────
 echo "[*] Install library Python (wafw00f, rich, arjun)..."
-# macOS tidak pakai --break-system-packages
-pip3 install wafw00f rich arjun 2>/dev/null \
-    || pip install wafw00f rich arjun &>/dev/null
+# Arch pakai externally-managed Python, butuh --break-system-packages
+pip install wafw00f rich arjun simple-term-menu --break-system-packages 2>/dev/null
+if [ $? -ne 0 ]; then
+    # Fallback: coba pipx kalau pip gagal
+    if ! command -v pipx &>/dev/null; then
+        sudo pacman -S --noconfirm --needed python-pipx 2>/dev/null || \
+            pip install pipx --break-system-packages 2>/dev/null
+    fi
+    pipx install wafw00f 2>/dev/null
+    pipx install arjun 2>/dev/null
+    # rich dan simple-term-menu tetap butuh pip (library, bukan CLI)
+    pip install rich simple-term-menu --break-system-packages 2>/dev/null || true
+fi
 
-# ── Go tools ─────────────────────────────────────────────────────────
+# ── Go tools ──────────────────────────────────────────────────────────
 echo "[*] Install tools Go..."
 if ! command -v go &>/dev/null; then
     echo "[!] Go tidak terdeteksi. Silakan pasang Go manual: https://go.dev/doc/install"
 else
     _go_install() {
         echo "    -> $1"
-        go install "$1" &>/dev/null && echo "    [+] OK" || echo "    [!] GAGAL"
+        go install "$1" 2>/dev/null && echo "    [+] OK" || echo "    [!] GAGAL: $1"
     }
 
-    # Core tools
     _go_install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
     _go_install github.com/projectdiscovery/alterx/cmd/alterx@latest
     _go_install github.com/projectdiscovery/dnsx/cmd/dnsx@latest
@@ -68,23 +74,20 @@ else
     _go_install github.com/projectdiscovery/katana/cmd/katana@latest
     _go_install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
     _go_install github.com/ffuf/ffuf/v2@latest
-
-    # Tier 1 & 2
     _go_install github.com/owasp-amass/amass/v4/cmd/amass@latest
     _go_install github.com/lc/gau/v2/cmd/gau@latest
     _go_install github.com/tomnomnom/waybackurls@latest
     _go_install github.com/PentestPad/subzy@latest
 fi
 
-# ── Wordlist ─────────────────────────────────────────────────────────
+# ── Wordlist ──────────────────────────────────────────────────────────
 echo "[*] Cek wordlist sistem..."
 WORDLIST_FOUND=false
 for wl_path in \
     "/usr/share/wordlists/dirb/common.txt" \
     "/usr/share/dirb/wordlists/common.txt" \
     "/usr/share/seclists/Discovery/Web-Content/common.txt" \
-    "/usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt" \
-    "/opt/homebrew/share/seclists/Discovery/Web-Content/common.txt"; do
+    "/usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt"; do
     if [ -f "$wl_path" ]; then
         WORDLIST_FOUND=true
         echo "[+] Wordlist ditemukan: $wl_path"
@@ -110,8 +113,7 @@ ALIAS_LINE="alias recon='python3 $RECON_DIR/recon.py'"
 for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
     [ -f "$rc" ] || continue
     if grep -q "alias recon=" "$rc"; then
-        # macOS sed butuh '' setelah -i
-        sed -i '' "s|alias recon=.*|$ALIAS_LINE|" "$rc"
+        sed -i "s|alias recon=.*|$ALIAS_LINE|" "$rc"
         echo "[~] Update alias di $rc"
     else
         echo "$ALIAS_LINE" >> "$rc"
@@ -119,35 +121,32 @@ for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
     fi
 done
 
-# Symlink sebagai fallback (agar 'recon' juga jalan di non-interactive shell)
 mkdir -p "$HOME/.local/bin"
 ln -sf "$RECON_DIR/recon.py" "$HOME/.local/bin/recon"
 echo "[+] Symlink: $HOME/.local/bin/recon -> $RECON_DIR/recon.py"
 
-# ── Siapkan .env (opsional, untuk fitur AI) ───────────────────────────
+# ── Siapkan .env ──────────────────────────────────────────────────────
 if [ ! -f "$RECON_DIR/.env" ]; then
     cp "$RECON_DIR/.env.example" "$RECON_DIR/.env"
-    echo "[+] Dibuat .env dari template (isi GEMINI_API_KEY untuk fitur AI)"
+    echo "[+] Dibuat .env dari template (isi API key untuk fitur AI)"
 fi
 
-# ── Source shell yang aktif ───────────────────────────────────────────
+# ── Source shell ──────────────────────────────────────────────────────
 echo ""
 echo "[*] Mendeteksi shell aktif..."
 
 if [ -n "$ZSH_VERSION" ] || [[ "$SHELL" == *"zsh"* ]]; then
     echo "[+] Terdeteksi: zsh"
-    # shellcheck disable=SC1090
     source "$HOME/.zshrc" 2>/dev/null && echo "[+] .zshrc di-source" || echo "[!] Gagal source .zshrc — jalankan manual: source ~/.zshrc"
 else
     echo "[+] Terdeteksi: bash"
-    # shellcheck disable=SC1090
     source "$HOME/.bashrc" 2>/dev/null && echo "[+] .bashrc di-source" || echo "[!] Gagal source .bashrc — jalankan manual: source ~/.bashrc"
 fi
 
 # ── Ringkasan ─────────────────────────────────────────────────────────
 echo ""
 echo "══════════════════════════════════════════════"
-echo " recon.io — instalasi selesai (macOS)"
+echo " recon.io — instalasi selesai (Arch Linux)"
 echo "══════════════════════════════════════════════"
 echo " Penggunaan:"
 echo "   recon -d example.com"
@@ -174,7 +173,7 @@ ai_choice="${ai_choice:-5}"
 _set_env() {
     local key="$1" val="$2"
     if grep -qE "^#?\s*${key}=" "$RECON_DIR/.env" 2>/dev/null; then
-        sed -i '' "s|^#*\s*${key}=.*|${key}=${val}|" "$RECON_DIR/.env"
+        sed -i "s|^#*\s*${key}=.*|${key}=${val}|" "$RECON_DIR/.env"
     else
         echo "${key}=${val}" >> "$RECON_DIR/.env"
     fi
@@ -225,7 +224,7 @@ case "$ai_choice" in
         echo "   [~] AI dilewati. Edit .env kapan saja untuk mengaktifkan."
         ;;
 esac
-echo ""
+
 echo ""
 echo " Jika 'recon' belum dikenali, jalankan:"
 if [ -n "$ZSH_VERSION" ] || [[ "$SHELL" == *"zsh"* ]]; then
@@ -234,4 +233,3 @@ else
     echo "   source ~/.bashrc"
 fi
 echo "══════════════════════════════════════════════"
-

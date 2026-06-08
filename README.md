@@ -227,6 +227,9 @@ Pilih sesuai OS:
 # Linux (Kali, Ubuntu, Debian)
 chmod +x install.sh && ./install.sh
 
+# Arch Linux / Manjaro
+chmod +x install-arch.sh && ./install-arch.sh
+
 # macOS
 chmod +x install-mac.sh && ./install-mac.sh
 ```

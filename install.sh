@@ -1,7 +1,7 @@
 #!/bin/bash
 # install.sh — Setup semua tools recon.io
 
-set -e
+set +e
 
 RECON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -58,7 +58,7 @@ else
     _go_install github.com/ffuf/ffuf/v2@latest
 
     # Tier 1 & 2 — baru
-    _go_install github.com/owasp-amass/amass/v4/...@master
+    _go_install github.com/owasp-amass/amass/v4/cmd/amass@latest
     _go_install github.com/lc/gau/v2/cmd/gau@latest
     _go_install github.com/tomnomnom/waybackurls@latest
     _go_install github.com/PentestPad/subzy@latest
