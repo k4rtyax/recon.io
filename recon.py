@@ -123,7 +123,7 @@ def parse_args():
     # recon.py masuk mode chat (ditangani di main). Selain itu main yang beri error.
     if args.recon_subs and not args.domain:
         parser.error("--recon-subs hanya bisa digunakan dengan -d/--domain")
-    return args
+    return args, parser
 
 
 def _help_epilog() -> str:
@@ -498,7 +498,7 @@ def _clean_target(raw_target: str) -> str:
 
 
 def main():
-    args = parse_args()
+    args, parser = parse_args()
 
     banner()
 
@@ -538,13 +538,19 @@ def main():
             ai.menu_session(args.output, sc)
             sys.exit(0)
         if tty and ai.available():
+            ok, msg = ai.ping()
+            if not ok:
+                err(f"API key tidak valid: {msg}")
+                console.print()
+                parser.print_help()
+                sys.exit(1)
             ai.chat_session(args.output)
             sys.exit(0)
+        console.print()
+        parser.print_help()
         if ai.available():
-            err("mode chat butuh terminal interaktif. jalankan: recon -d <domain>")
-        else:
-            err("tidak ada target. jalankan: recon -d <domain>  (atau: recon --scope <file>)")
-            err("(set API key AI di .env — lihat .env.example — untuk mode chat)")
+            console.print()
+            err("mode chat butuh terminal interaktif")
         sys.exit(1)
 
     # ── tentukan daftar fase ─────────────────────────────────────

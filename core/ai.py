@@ -69,6 +69,46 @@ def available() -> bool:
     return bool(_BASE_URL)
 
 
+def ping() -> tuple[bool, str]:
+    """Validasi key/koneksi dengan request minimal. Return (ok, pesan_error)."""
+    key = _api_key() or ""
+    try:
+        if _PROVIDER == "gemini":
+            url = f"https://generativelanguage.googleapis.com/v1beta/models?key={key}"
+            req = urllib.request.Request(url)
+            with urllib.request.urlopen(req, timeout=10, context=_ssl_context()):
+                pass
+            return True, ""
+
+        else:  # openai-compatible
+            if not _BASE_URL:
+                return False, "RECON_AI_BASE_URL belum diset"
+            is_ollama = "localhost" in _BASE_URL or "127.0.0.1" in _BASE_URL
+            if is_ollama:
+                url = _BASE_URL.rstrip("/").replace("/v1", "") + "/api/tags"
+                req = urllib.request.Request(url)
+            else:
+                url = _BASE_URL.rstrip("/") + "/models"
+                req = urllib.request.Request(
+                    url,
+                    headers={"Authorization": f"Bearer {key}", "User-Agent": "recon.io/2.0"},
+                )
+            with urllib.request.urlopen(req, timeout=10, context=_ssl_context()):
+                pass
+            return True, ""
+
+    except urllib.error.HTTPError as e:
+        if e.code in (400, 401, 403):
+            return False, f"key tidak valid (HTTP {e.code})"
+        if e.code >= 500:
+            return False, f"server error ({e.code})"
+        return True, ""
+    except urllib.error.URLError as e:
+        return False, f"tidak bisa terhubung: {e.reason}"
+    except Exception as e:
+        return False, f"error: {e}"
+
+
 def resolve_target_dir(output_dir: str, target: str) -> str:
     """Tentukan folder output target untuk run hari ini (samakan dengan runner)."""
     date_tag    = datetime.now().strftime("recon_%d_%m_%Y")
@@ -400,9 +440,8 @@ def _execute_run(target, fases, scope, program, output_dir, ai_summary=True):
         f"fase=[cyan]{', '.join(fases)}[/cyan]  output=[cyan]{output_dir}[/cyan]"
     )
     console.print(f"[green][scope] in-scope ({escape(reason)})[/green]")
-    console.print("[bold yellow][!] dengan melanjutkan, kamu menyatakan BERWENANG menguji target ini.[/bold yellow]")
-    ans = console.input("[?] Saya berwenang & jalankan recon sekarang? [y/N]: ").strip().lower()
-    if ans != "y":
+    from core import menu as kbmenu
+    if not kbmenu.confirm("Saya berwenang & jalankan recon sekarang?", default=False):
         console.print("[bold green][AI][/bold green] Oke, dibatalkan.")
         return None
 
