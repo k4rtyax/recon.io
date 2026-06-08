@@ -25,10 +25,14 @@ def _amass_major_version() -> int | None:
 
 def _wildcard_ips(target: str) -> set[str]:
     """Probe subdomain acak untuk mendeteksi wildcard DNS. Return set IP, kosong jika tidak ada."""
+    from core.utils import warn as _warn
     probe = "wc-" + "".join(random.choices(string.ascii_lowercase + string.digits, k=10)) + "." + target
     try:
         return {r[4][0] for r in socket.getaddrinfo(probe, None)}
-    except OSError:
+    except socket.gaierror:
+        return set()  # NXDOMAIN — tidak ada wildcard, normal
+    except OSError as e:
+        _warn(f"wildcard DNS check gagal ({e}) — filter wildcard dilewati, hasil mungkin mengandung false positive")
         return set()
 
 

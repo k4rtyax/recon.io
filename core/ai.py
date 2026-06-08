@@ -433,23 +433,25 @@ def _execute_run(target, fases, scope, program, output_dir, ai_summary=True):
         fases = [f for f in fases if f != "subdomain"]
         info(f"{target}: host spesifik (scope non-wildcard) — fase subdomain dilewati")
 
-    info(f"kenalan singkat dengan {target}...")
-    tctx = _fetch_context(target)   # curl saja, bukan AI
-    console.print(f"[dim]target: {escape(tctx)}[/dim]")
-    if ai_summary and available():
-        summary = _summarize_target(target, tctx)
-        if summary:
-            console.print(f"[bold green][AI][/bold green] {escape(summary)}")
-
+    # ── konfirmasi SEBELUM probe apapun ke target ────────────────
     console.print(
         f"\n[bold]rencana:[/bold] target=[cyan]{target}[/cyan]  "
         f"fase=[cyan]{', '.join(fases)}[/cyan]  output=[cyan]{output_dir}[/cyan]"
     )
     console.print(f"[green][scope] in-scope ({escape(reason)})[/green]")
     from core import menu as kbmenu
-    if not kbmenu.confirm("Saya berwenang & jalankan recon sekarang?", default=False):
+    if not kbmenu.confirm("Jalankan recon sekarang?", default=False):
         console.print("[bold green][AI][/bold green] Oke, dibatalkan.")
         return None
+
+    # ── baru probe setelah user konfirmasi ───────────────────────
+    info(f"kenalan singkat dengan {target}...")
+    tctx = _fetch_context(target)
+    console.print(f"[dim]target: {escape(tctx)}[/dim]")
+    if ai_summary and available():
+        summary = _summarize_target(target, tctx)
+        if summary:
+            console.print(f"[bold green][AI][/bold green] {escape(summary)}")
 
     from core.runner import run_target
     try:
@@ -586,6 +588,9 @@ def chat_session(output_dir: str):
                 console.print("[bold green][AI][/bold green] Set scope dulu ya sebelum recon.")
                 history += [f"USER: {user}", "AI: minta scope"]
                 continue
+            new_target = _clean_target(intent.get("target") or "")
+            if new_target and new_target != cur_target:
+                cur_dir = None  # clear report lama saat ganti target
             res = _execute_run(intent.get("target"), intent.get("fases"), scope, program, output_dir)
             if res:
                 cur_target, cur_dir = res
