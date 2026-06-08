@@ -579,6 +579,14 @@ def chat_session(output_dir: str):
                 console.print(scope.describe(), markup=False)
                 if program:
                     console.print(f"[dim]program: {escape(program)}[/dim]")
+                # auto-picker jika ada host spesifik (non-wildcard)
+                specific = [h for h in scope.allow if not h.startswith("*.")]
+                if specific:
+                    res = _menu_select(scope, output_dir, program)
+                    if res:
+                        cur_target, cur_dir = res
+                    history += [f"USER: {user}", f"AI: scope set + picker ({len(specific)} host)"]
+                    continue
             if msg:
                 console.print(f"[bold green][AI][/bold green] {escape(msg)}")
 

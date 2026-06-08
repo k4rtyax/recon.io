@@ -7,6 +7,8 @@ otomatis fallback ke input teks bernomor. Jadi tetap jalan di mana saja.
 
 import sys
 
+_CURSOR = "● "
+
 
 def _enabled() -> bool:
     if not (sys.stdin.isatty() and sys.stdout.isatty()):
@@ -25,7 +27,7 @@ def pick(title: str, options: list[str]) -> str | None:
         return None
     if _enabled():
         from simple_term_menu import TerminalMenu
-        idx = TerminalMenu(options, title=title).show()
+        idx = TerminalMenu(options, title=title, menu_cursor=_CURSOR).show()
         return options[idx] if idx is not None else None
     # fallback teks
     print(title)
@@ -50,6 +52,7 @@ def multi_pick(title: str, options: list[str], preselected: list[str] | None = N
             multi_select=True,
             show_multi_select_hint=True,
             preselected_entries=preselected or None,
+            menu_cursor=_CURSOR,
         )
         chosen = menu.show()
         if not chosen:
@@ -75,7 +78,7 @@ def confirm(question: str, default: bool = False) -> bool:
     """Konfirmasi ya/tidak."""
     if _enabled():
         from simple_term_menu import TerminalMenu
-        idx = TerminalMenu(["[] ya", "[] tidak"], title=question).show()
+        idx = TerminalMenu(["[] ya", "[] tidak"], title=question, menu_cursor=_CURSOR).show()
         return idx == 0
     suffix = "[Y/n]" if default else "[y/N]"
     raw = input(f"{question} {suffix}: ").strip().lower()
