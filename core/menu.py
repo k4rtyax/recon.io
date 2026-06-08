@@ -75,7 +75,7 @@ def confirm(question: str, default: bool = False) -> bool:
     """Konfirmasi ya/tidak."""
     if _enabled():
         from simple_term_menu import TerminalMenu
-        idx = TerminalMenu(["ya", "tidak"], title=question).show()
+        idx = TerminalMenu(["[] ya", "[] tidak"], title=question).show()
         return idx == 0
     suffix = "[Y/n]" if default else "[y/N]"
     raw = input(f"{question} {suffix}: ").strip().lower()
