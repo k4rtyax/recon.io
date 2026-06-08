@@ -3,7 +3,12 @@ import os
 # ─── DEFAULT SETTINGS ───────────────────────────────────────────
 # Semua bisa di-override via environment variable.
 
-def _load_env(path=".env"):
+_RECON_DIR = os.path.dirname(os.path.realpath(__file__))
+
+
+def _load_env(path=None):
+    if path is None:
+        path = os.path.join(_RECON_DIR, ".env")
     if not os.path.exists(path):
         return
     with open(path) as f:
