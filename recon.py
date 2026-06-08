@@ -20,7 +20,7 @@ if sys.version_info < (3, 10):
 import os
 import argparse
 
-# ── pastikan root project ada di path ────────────────────────────
+# ── memastikan root project ada di path ────────────────────────────
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config import FASE_LIST, DEFAULT_OUTPUT_DIR
