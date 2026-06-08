@@ -131,7 +131,7 @@ def _load_report(target_dir: str) -> str | None:
         return f.read()[:_MAX_CHARS]
 
 
-def _call_gemini(system: str, user: str) -> str | None:
+def _call_gemini(system: str, user: str, silent: bool = False) -> str | None:
     key = _api_key()
     if not key:
         warn("API_KEY tidak di-set — fitur AI dilewati (set di .env)")
@@ -159,7 +159,8 @@ def _call_gemini(system: str, user: str) -> str | None:
         except Exception:
             msg = body[:200]
         if e.code == 429:
-            err("Gemini API: kuota habis / rate limit (429). Coba lagi nanti atau cek billing.")
+            if not silent:
+                err("Gemini API: kuota habis / rate limit (429). Coba lagi nanti atau cek billing.")
         else:
             err(f"Gemini API error {e.code}: {msg[:200]}")
         return None
@@ -175,7 +176,7 @@ def _call_gemini(system: str, user: str) -> str | None:
         return None
 
 
-def _call_openai(system: str, user: str) -> str | None:
+def _call_openai(system: str, user: str, silent: bool = False) -> str | None:
     """Provider OpenAI-compatible: Groq, OpenRouter, OpenAI, atau Ollama (lokal)."""
     if not _BASE_URL:
         warn("RECON_AI_BASE_URL belum diset untuk provider 'openai' (mis. Groq/Ollama)")
@@ -216,7 +217,8 @@ def _call_openai(system: str, user: str) -> str | None:
         except Exception:
             msg = body[:200]
         if e.code == 429:
-            err("LLM API: kuota / rate limit (429). Coba lagi nanti.")
+            if not silent:
+                err("LLM API: kuota / rate limit (429). Coba lagi nanti.")
         else:
             err(f"LLM API error {e.code}: {msg[:200]}")
         return None
@@ -231,11 +233,11 @@ def _call_openai(system: str, user: str) -> str | None:
         return None
 
 
-def _call_llm(system: str, user: str) -> str | None:
+def _call_llm(system: str, user: str, silent: bool = False) -> str | None:
     """Dispatcher LLM sesuai RECON_AI_PROVIDER (gemini | openai)."""
     if _PROVIDER == "openai":
-        return _call_openai(system, user)
-    return _call_gemini(system, user)
+        return _call_openai(system, user, silent=silent)
+    return _call_gemini(system, user, silent=silent)
 
 
 _SYS_ATTACK = (
@@ -395,7 +397,7 @@ def _fetch_context(target: str) -> str:
 
 
 def _summarize_target(target: str, ctx: str) -> str | None:
-    return _call_llm(_SYS_TARGET, f"Target: {target}\nInfo teknis: {ctx}")
+    return _call_llm(_SYS_TARGET, f"Target: {target}\nInfo teknis: {ctx}", silent=True)
 
 
 def _write_authorization(target_dir: str, target: str, program: str, scope: "Scope | None"):
