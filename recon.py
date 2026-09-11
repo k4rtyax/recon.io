@@ -113,6 +113,16 @@ def parse_args():
         help="wizard setup / ganti provider AI (Gemini, Groq, OpenRouter, Ollama)",
     )
     parser.add_argument(
+        "--verify",
+        action="store_true",
+        help=(
+            "setelah recon, verifikasi PoC bertarget dengan nuclei.\n"
+            "AI mengusulkan template; tiap eksekusi dikonfirmasi manual\n"
+            "dan di-recheck ke scope. non-destruktif, butuh terminal interaktif.\n"
+            "pada --recon-subs, ditanyakan per subdomain in-scope"
+        ),
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version="recon.io 2.0",
@@ -583,6 +593,21 @@ def _clean_target(raw_target: str) -> str:
     return t.rstrip("/")
 
 
+def _run_verify(target: str, target_dir: str | None, scope) -> None:
+    """Jalankan fase verifikasi opsional untuk satu target yang sudah di-recon."""
+    if not target_dir:
+        warn(f"verifikasi dilewati untuk {target}: folder recon tidak diketahui")
+        return
+    from modules import verify
+    try:
+        verify.run_verify(target, target_dir, scope)
+    except KeyboardInterrupt:
+        console.print()
+        warn("verifikasi dihentikan (Ctrl+C)")
+    except Exception as exc:
+        err(f"verifikasi gagal untuk {target}: {exc}")
+
+
 def main():
     args, parser = parse_args()
 
@@ -727,10 +752,13 @@ def main():
 
         # step 3: recon tiap subdomain
         total_subs = len(alive_subs)
+        if args.verify:
+            info("verify        : akan ditanyakan per subdomain setelah recon-nya selesai")
+
         for i, sub in enumerate(alive_subs, 1):
             section(f"[{i}/{total_subs}] {sub}")
             try:
-                run_target(target=sub, output_dir=args.output, fases=sub_fases)
+                sub_dir = run_target(target=sub, output_dir=args.output, fases=sub_fases)
             except KeyboardInterrupt:
                 console.print()
                 warn("dihentikan oleh pengguna (Ctrl+C)")
@@ -738,6 +766,9 @@ def main():
             except Exception as exc:
                 err(f"error pada {sub}: {exc}")
                 continue
+
+            if args.verify:
+                _run_verify(sub, sub_dir, scope)
 
         section("semua subdomain selesai")
         info(f"hasil disimpan di: {args.output}")
@@ -756,7 +787,7 @@ def main():
                 continue
         section(f"[{i}/{total}] {target}")
         try:
-            run_target(
+            target_dir = run_target(
                 target=target,
                 output_dir=args.output,
                 fases=fases,
@@ -768,6 +799,9 @@ def main():
         except Exception as exc:
             err(f"error pada target {target}: {exc}")
             continue
+
+        if args.verify:
+            _run_verify(target, target_dir, scope)
 
     section("semua target selesai")
     info(f"hasil disimpan di: {args.output}")

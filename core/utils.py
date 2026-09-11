@@ -63,9 +63,9 @@ def tool_available(name: str) -> bool:
     return shutil.which(name) is not None
 
 
-def run(cmd: list, timeout: int = 60, silent: bool = True) -> tuple[int, str, str]:
+def run(cmd: list, timeout: int = 60, silent: bool = True, input_data: str | None = None) -> tuple[int, str, str]:
     """
-    Jalankan perintah shell.
+    Jalankan perintah (tanpa shell). `input_data` dikirim ke stdin bila diberikan.
     Return: (returncode, stdout, stderr)
     """
     try:
@@ -74,6 +74,7 @@ def run(cmd: list, timeout: int = 60, silent: bool = True) -> tuple[int, str, st
             capture_output=True,
             text=True,
             timeout=timeout,
+            input=input_data,
         )
         return result.returncode, result.stdout, result.stderr
     except subprocess.TimeoutExpired:

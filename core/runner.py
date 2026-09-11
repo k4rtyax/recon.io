@@ -116,7 +116,14 @@ def run_target(
     target: str,
     output_dir: str = DEFAULT_OUTPUT_DIR,
     fases: list = None,
-):
+) -> str | None:
+    """Jalankan semua fase untuk satu target.
+
+    Return folder output target (dipakai caller untuk fase lanjutan seperti
+    verifikasi — jangan hitung ulang dari datetime.now(), karena recon panjang
+    bisa melewati tengah malam dan menghasilkan folder tanggal yang berbeda),
+    atau None bila fase tidak valid.
+    """
     if fases is None:
         fases = FASE_LIST
 
@@ -124,7 +131,7 @@ def run_target(
     if invalid:
         err(f"Fase tidak dikenal: {', '.join(invalid)}")
         err(f"Fase yang tersedia: {', '.join(FASE_LIST)}")
-        return
+        return None
 
     date_tag    = datetime.now().strftime("recon_%d_%m_%Y")
     folder_name = target.replace("*.", "").replace("/", "_")
@@ -183,6 +190,8 @@ def run_target(
     info(f"fase berhasil : {done_c}/{total}")
     info(f"report md     : {md_path}")
     info(f"report txt    : {txt_path}")
+
+    return target_dir
 
 
 def _add_to_report(report: Report, fase: str):

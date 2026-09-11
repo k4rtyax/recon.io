@@ -42,8 +42,9 @@ def run(target: str, target_dir: str):
     elif tool_available(TOOLS["waybackurls"]):
         wb_out = os.path.join(out, "waybackurls.txt")
         code, stdout, _ = exec_cmd(
-            ["bash", "-c", f"echo '{target}' | {TOOLS['waybackurls']}"],
+            [TOOLS["waybackurls"]],
             timeout=t,
+            input_data=target + "\n",
         )
         if stdout.strip():
             write_lines(wb_out, stdout.splitlines())

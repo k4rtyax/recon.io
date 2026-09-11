@@ -19,10 +19,26 @@ Bukan kontrol keamanan: ini pagar etis & penangkap scope, bukan penegak otorisas
 from __future__ import annotations
 
 import csv
-import fnmatch as _fnmatch
+import re
 
 # Tipe aset yang didukung recon.io (web/domain). Sisanya dilewati.
 _WEB_TYPES = {"url", "wildcard", "domain", "web", ""}
+
+_MULTI_TLDS = {
+    "co.uk", "org.uk", "gov.uk", "ac.uk", "me.uk",
+    "co.id", "or.id", "ac.id", "go.id", "web.id", "sch.id",
+    "com.au", "net.au", "org.au", "gov.au", "edu.au",
+    "co.jp", "or.jp", "ne.jp", "com.br", "com.sg", "com.my",
+    "co.in", "co.za", "co.nz", "co.th", "com.cn", "com.tr", "com.hk",
+}
+
+# SLD generik yang lazim dipakai di bawah ccTLD dua huruf (com.mx, co.kr,
+# org.ar, com.ua, ...). Daftar _MULTI_TLDS di atas tidak akan pernah lengkap,
+# jadi kombinasi <sld generik>.<cc dua huruf> ikut dianggap akhiran TLD.
+_GENERIC_SLDS = {
+    "com", "co", "net", "org", "gov", "edu", "ac", "mil", "int", "biz", "info",
+    "or", "ne", "go", "web", "sch", "in", "nom", "gob", "gouv", "gen", "ind",
+}
 
 # Kandidat nama kolom CSV (urut prioritas), dicocokkan case-insensitive.
 _IDENT_KEYS = ["identifier", "asset_identifier", "url", "domain", "host", "target", "asset", "name"]
@@ -40,18 +56,59 @@ def _norm(host: str) -> str:
     return h.rstrip(".")
 
 
+def _is_tld_suffix(rest: str) -> bool:
+    """True bila `rest` masuk akal sebagai akhiran TLD untuk pola `example.*`.
+
+    Satu label ("com", "de") selalu diterima. Dua label diterima bila terdaftar
+    di _MULTI_TLDS atau berbentuk <sld generik>.<cc dua huruf>. Tiga label atau
+    lebih ditolak, supaya `example.*` tidak ikut mencocokkan
+    `example.s3.amazonaws.com`.
+    """
+    if not rest:
+        return False
+    if "." not in rest:
+        return True
+    if rest in _MULTI_TLDS:
+        return True
+    parts = rest.split(".")
+    return (
+        len(parts) == 2
+        and parts[0] in _GENERIC_SLDS
+        and len(parts[1]) == 2
+        and parts[1].isalpha()
+    )
+
+
 def _match(pattern: str, host: str) -> bool:
     p = pattern.strip().lower().rstrip(".")
     if not p or not host:
         return False
     if "*" not in p:
         return host == p
+    if p == "*":
+        return True
+
     if p.startswith("*."):
+        # apex + semua subdomain. base sendiri masih boleh mengandung wildcard
+        # (mis. `*.example.*`), jadi dicocokkan lewat rekursi, bukan endswith().
         base = p[2:]
-        # apex sendiri + semua subdomain (berapapun kedalamannya)
-        return host == base or _fnmatch.fnmatch(host, p)
-    # middle wildcard (example.*.google.com) atau TLD wildcard (example.*)
-    return _fnmatch.fnmatch(host, p)
+        if not base:
+            return False
+        labels = host.split(".")
+        return any(_match(base, ".".join(labels[i:])) for i in range(len(labels)))
+
+    if p.endswith(".*"):
+        prefix = p[:-2]
+        if not prefix:
+            return False
+        labels = host.split(".")
+        for i in range(1, len(labels)):
+            if _is_tld_suffix(".".join(labels[i:])) and _match(prefix, ".".join(labels[:i])):
+                return True
+        return False
+
+    regex = "^" + r"[^.]+".join(re.escape(part) for part in p.split("*")) + "$"
+    return re.match(regex, host) is not None
 
 
 def _find_col(fieldnames, candidates) -> str | None:

@@ -256,6 +256,54 @@ _SYS_ASK = (
 )
 
 
+_SYS_NUCLEI = (
+    "Kamu pentester web. Diberi ringkasan teknologi & temuan recon sebuah target, "
+    "usulkan tag nuclei yang RELEVAN untuk verifikasi. HANYA template DETEKSI "
+    "non-destruktif — jangan usulkan sesuatu yang menulis, menghapus, brute-force, "
+    "atau membanjiri target. Balas HANYA satu array JSON berisi string tag "
+    'nuclei, contoh: ["springboot","exposure","cve"]. Tanpa teks lain, tanpa code fence. '
+    "Maksimal 8 tag, urut dari paling relevan. Jika data tak cukup, balas []."
+)
+
+_SYS_VERIFY = (
+    "Kamu pentester web / bug bounty hunter senior. Diberi output verifikasi bertarget "
+    "(bisa dari nuclei, cek open-redirect via canary, atau probe exposed-tool), tafsirkan "
+    "dalam Bahasa Indonesia: mana temuan yang nyata & high-impact, mana yang kemungkinan "
+    "noise/false positive, dan langkah verifikasi manual berikutnya untuk tiap temuan "
+    "penting. Ringkas dan rujuk baris spesifik. Jangan mengarang temuan yang tidak ada di "
+    "output. Jangan pakai emoji."
+)
+
+
+def suggest_nuclei_tags(context: str) -> list[str]:
+    """Minta AI mengusulkan tag nuclei dari konteks recon. [] bila gagal / tak tersedia."""
+    if not available():
+        return []
+    raw = _call_llm(_SYS_NUCLEI, context, silent=True)
+    if not raw:
+        return []
+    s = raw.strip()
+    if s.startswith("```"):
+        s = s.strip("`")
+        if s[:4].lower() == "json":
+            s = s[4:]
+    i, j = s.find("["), s.rfind("]")
+    if i == -1 or j == -1:
+        return []
+    try:
+        arr = json.loads(s[i:j + 1])
+    except Exception:
+        return []
+    return [str(t).strip().lower() for t in arr if isinstance(t, (str,)) and str(t).strip()][:8]
+
+
+def interpret_nuclei(target: str, results_text: str) -> str | None:
+    """Minta AI menafsirkan output nuclei hasil verifikasi. None bila tak tersedia."""
+    if not available() or not results_text.strip():
+        return None
+    return _call_llm(_SYS_VERIFY, f"Target: {target}\n\n=== OUTPUT NUCLEI ===\n{results_text}", silent=True)
+
+
 def attack_suggestions(target: str, target_dir: str):
     report = _load_report(target_dir)
     if not report:
@@ -455,7 +503,7 @@ def _execute_run(target, fases, scope, program, output_dir, ai_summary=True):
 
     from core.runner import run_target
     try:
-        run_target(target=target, output_dir=output_dir, fases=fases)
+        ran_dir = run_target(target=target, output_dir=output_dir, fases=fases)
     except KeyboardInterrupt:
         console.print()
         warn("recon dihentikan (Ctrl+C)")
@@ -464,7 +512,9 @@ def _execute_run(target, fases, scope, program, output_dir, ai_summary=True):
         err(f"recon gagal: {exc}")
         return None
 
-    cur_dir = resolve_target_dir(output_dir, target)
+    # pakai folder yang benar-benar dipakai runner — recon yang melewati
+    # tengah malam membuat resolve_target_dir() menunjuk folder tanggal lain.
+    cur_dir = ran_dir or resolve_target_dir(output_dir, target)
     auth = _write_authorization(cur_dir, target, program, scope)
     info(f"otorisasi dicatat: {auth}")
     console.print("\n[bold green][AI][/bold green] Recon beres. Tanya hasilnya, atau minta 'analisis serangan'.")
