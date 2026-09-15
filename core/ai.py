@@ -31,8 +31,8 @@ import urllib.error
 from datetime import datetime
 
 from rich.markup import escape
-from core.utils import info, warn, err, section, console, run as exec_cmd, get_working_url
-from config import FASE_LIST, TOOLS, DEFAULT_USER_AGENT
+from core.utils import info, warn, err, section, console
+from config import FASE_LIST, DEFAULT_USER_AGENT
 from core.scope import Scope
 
 _PROVIDER   = os.environ.get("RECON_AI_PROVIDER", "gemini").strip().lower()
@@ -62,11 +62,21 @@ def _ssl_context() -> ssl.SSLContext:
         return ssl.create_default_context()
 
 
+def _is_local_endpoint() -> bool:
+    return "localhost" in _BASE_URL or "127.0.0.1" in _BASE_URL
+
+
+def provider_name() -> str:
+    return _PROVIDER
+
+
 def available() -> bool:
     if _PROVIDER == "gemini":
         return bool(_api_key())
-    # openai-compatible cukup punya base_url (key opsional utk Ollama lokal)
-    return bool(_BASE_URL)
+    if not _BASE_URL:
+        return False
+    # endpoint lokal (Ollama) tidak butuh key
+    return _is_local_endpoint() or bool(_api_key())
 
 
 def ping() -> tuple[bool, str]:
@@ -83,8 +93,7 @@ def ping() -> tuple[bool, str]:
         else:  # openai-compatible
             if not _BASE_URL:
                 return False, "RECON_AI_BASE_URL belum diset"
-            is_ollama = "localhost" in _BASE_URL or "127.0.0.1" in _BASE_URL
-            if is_ollama:
+            if _is_local_endpoint():
                 url = _BASE_URL.rstrip("/").replace("/v1", "") + "/api/tags"
                 req = urllib.request.Request(url)
             else:
@@ -383,12 +392,6 @@ _SYS_CHAT = (
     "Jangan memakai emoji."
 )
 
-_SYS_TARGET = (
-    "Kamu asisten recon. Diberi info teknis singkat sebuah target, beri ringkasan 2-3 "
-    "kalimat (jenis situs & teknologi) lalu sarankan fase recon paling relevan dari: "
-    f"{', '.join(FASE_LIST)}. Bahasa Indonesia, ringkas, tanpa emoji."
-)
-
 
 def _clean_target(t: str) -> str:
     t = (t or "").strip().replace("http://", "").replace("https://", "")
@@ -412,60 +415,9 @@ def _parse_intent(raw: str) -> dict | None:
         return None
 
 
-def _fetch_context(target: str) -> str:
-    """Kenalan singkat target via curl: status, server, title, deteksi SPA. Sentuhan ringan."""
-    import re
-    url = get_working_url(target)
-    _, head, _ = exec_cmd(
-        [TOOLS["curl"], "-sIL", "-A", DEFAULT_USER_AGENT, "--max-time", "10", url], timeout=12)
-    _, body, _ = exec_cmd(
-        [TOOLS["curl"], "-sL", "-A", DEFAULT_USER_AGENT, "--max-time", "10", url], timeout=12)
-
-    status = server = ""
-    for line in head.splitlines():
-        low = line.lower()
-        if low.startswith("http/"):
-            status = line.strip()
-        elif low.startswith("server:"):
-            server = line.split(":", 1)[1].strip()
-
-    m = re.search(r"<title[^>]*>(.*?)</title>", body, re.I | re.S)
-    title = re.sub(r"\s+", " ", m.group(1)).strip()[:120] if m else ""
-    scripts = len(re.findall(r"<script", body, re.I))
-    spa = bool(re.search(r'id=["\'](root|app|__next)["\']', body, re.I)) and scripts >= 3
-    hints = sorted({kw for kw in
-                    ("react", "vue", "angular", "next", "nuxt", "svelte", "webpack")
-                    if kw in body.lower()})
-
-    line = (f"url={url} | status={status or '?'} | server={server or '?'} | "
-            f"title={title or '-'} | spa={'ya' if spa else 'tidak'}")
-    if hints:
-        line += f" | hint={','.join(hints)}"
-    return line
-
-
-def _summarize_target(target: str, ctx: str) -> str | None:
-    return _call_llm(_SYS_TARGET, f"Target: {target}\nInfo teknis: {ctx}", silent=True)
-
-
-def _write_authorization(target_dir: str, target: str, program: str, scope: "Scope | None"):
-    os.makedirs(target_dir, exist_ok=True)
-    path = os.path.join(target_dir, "authorization.txt")
-    with open(path, "w") as f:
-        f.write(f"target  : {target}\n")
-        f.write(f"program : {program or '(tidak dinyatakan)'}\n")
-        f.write(f"scope   : {scope.summary() if scope else '(tidak diset)'}\n")
-        f.write(f"waktu   : {datetime.now():%Y-%m-%d %H:%M:%S}\n")
-        f.write("catatan : otorisasi DINYATAKAN oleh user via mode chat. "
-                "recon.io tidak memverifikasi klaim ini.\n")
-    return path
-
-
-def _execute_run(target, fases, scope, program, output_dir, ai_summary=True):
-    """Validasi scope -> fetch konteks -> gerbang 'berwenang' -> jalankan recon.
-    Return (target, target_dir) bila jalan; None bila out-of-scope / dibatalkan.
-    Dipakai bersama oleh mode chat (AI) dan mode menu (keyboard).
-    ai_summary=False (mode menu): TIDAK ada panggilan AI sama sekali."""
+def _execute_run(target, fases, scope, output_dir):
+    """Validasi scope -> konfirmasi -> jalankan recon.
+    Return (target, target_dir) bila jalan; None bila out-of-scope / dibatalkan."""
     target = _clean_target(target or "")
     if not target:
         console.print("[bold green][AI][/bold green] Target mana yang mau di-recon?")
@@ -481,7 +433,7 @@ def _execute_run(target, fases, scope, program, output_dir, ai_summary=True):
         fases = [f for f in fases if f != "subdomain"]
         info(f"{target}: host spesifik (scope non-wildcard) — fase subdomain dilewati")
 
-    # ── konfirmasi SEBELUM probe apapun ke target ────────────────
+    # ── konfirmasi sebelum menjalankan ───────────────────────────
     console.print(
         f"\n[bold]rencana:[/bold] target=[cyan]{target}[/cyan]  "
         f"fase=[cyan]{', '.join(fases)}[/cyan]  output=[cyan]{output_dir}[/cyan]"
@@ -491,15 +443,6 @@ def _execute_run(target, fases, scope, program, output_dir, ai_summary=True):
     if not kbmenu.confirm("Jalankan recon sekarang?", default=False):
         console.print("[bold green][AI][/bold green] Oke, dibatalkan.")
         return None
-
-    # ── baru probe setelah user konfirmasi ───────────────────────
-    info(f"kenalan singkat dengan {target}...")
-    tctx = _fetch_context(target)
-    console.print(f"[dim]target: {escape(tctx)}[/dim]")
-    if ai_summary and available():
-        summary = _summarize_target(target, tctx)
-        if summary:
-            console.print(f"[bold green][AI][/bold green] {escape(summary)}")
 
     from core.runner import run_target
     try:
@@ -515,19 +458,23 @@ def _execute_run(target, fases, scope, program, output_dir, ai_summary=True):
     # pakai folder yang benar-benar dipakai runner — recon yang melewati
     # tengah malam membuat resolve_target_dir() menunjuk folder tanggal lain.
     cur_dir = ran_dir or resolve_target_dir(output_dir, target)
-    auth = _write_authorization(cur_dir, target, program, scope)
-    info(f"otorisasi dicatat: {auth}")
-    console.print("\n[bold green][AI][/bold green] Recon beres. Tanya hasilnya, atau minta 'analisis serangan'.")
+    console.print()
+    info("recon selesai — tanya hasilnya, atau minta 'analisis serangan'")
     return target, cur_dir
 
 
-def _menu_select(scope, output_dir, program=""):
+def specific_hosts(scope) -> list[str]:
+    """Host non-wildcard di dalam scope — satu-satunya yang bisa dipilih lewat menu."""
+    return [a for a in scope.allow if not a.startswith("*.")]
+
+
+def _menu_select(scope, output_dir):
     """Picker keyboard: pilih host in-scope + fase, lalu jalankan. Return (target, dir) | None."""
     from core import menu as kbmenu
-    hosts = [a for a in scope.allow if not a.startswith("*.")]
+    hosts = specific_hosts(scope)
     if not hosts:
         warn("scope hanya wildcard — tak ada host spesifik untuk dipilih via menu")
-        warn("untuk wildcard: recon -d <root> --recon-subs --scope <file>")
+        warn("untuk wildcard: recon.py -d <root> --recon-subs --scope <file>")
         return None
     target = kbmenu.pick("pilih target (Esc = batal):", hosts)
     if not target:
@@ -538,16 +485,16 @@ def _menu_select(scope, output_dir, program=""):
     if not fases:
         warn("tidak ada fase dipilih")
         return None
-    return _execute_run(target, fases, scope, program, output_dir, ai_summary=False)
+    return _execute_run(target, fases, scope, output_dir)
 
 
-def menu_session(output_dir: str, scope, program: str = ""):
+def menu_session(output_dir: str, scope):
     """Mode menu keyboard tanpa AI: pilih target dari scope + fase, jalankan berulang."""
     from core import menu as kbmenu
     section("recon.io — mode menu (scope)")
     console.print(scope.describe(), markup=False)
     while True:
-        _menu_select(scope, output_dir, program)
+        _menu_select(scope, output_dir)
         if not kbmenu.confirm("recon target lain?", default=False):
             break
     section("selesai")
@@ -556,7 +503,7 @@ def menu_session(output_dir: str, scope, program: str = ""):
 def chat_session(output_dir: str):
     """Mode percakapan scope-first: AI mengusulkan, user menyetujui sebelum recon."""
     if not available():
-        warn("GEMINI_API_KEY tidak di-set — mode chat tidak tersedia (set di .env)")
+        warn(f"provider AI '{_PROVIDER}' belum dikonfigurasi — jalankan: python recon.py --setup-ai")
         return
 
     section("recon.io — asisten AI")
@@ -589,7 +536,7 @@ def chat_session(output_dir: str):
             if scope is None:
                 console.print("[bold green][AI][/bold green] Set scope dulu sebelum pakai menu.")
                 continue
-            res = _menu_select(scope, output_dir, program)
+            res = _menu_select(scope, output_dir)
             if res:
                 cur_target, cur_dir = res
             continue
@@ -630,9 +577,9 @@ def chat_session(output_dir: str):
                 if program:
                     console.print(f"[dim]program: {escape(program)}[/dim]")
                 # auto-picker jika ada host spesifik (non-wildcard)
-                specific = [h for h in scope.allow if not h.startswith("*.")]
+                specific = specific_hosts(scope)
                 if specific:
-                    res = _menu_select(scope, output_dir, program)
+                    res = _menu_select(scope, output_dir)
                     if res:
                         cur_target, cur_dir = res
                     history += [f"USER: {user}", f"AI: scope set + picker ({len(specific)} host)"]
@@ -649,7 +596,7 @@ def chat_session(output_dir: str):
             new_target = _clean_target(intent.get("target") or "")
             if new_target and new_target != cur_target:
                 cur_dir = None  # clear report lama saat ganti target
-            res = _execute_run(intent.get("target"), intent.get("fases"), scope, program, output_dir)
+            res = _execute_run(intent.get("target"), intent.get("fases"), scope, output_dir)
             if res:
                 cur_target, cur_dir = res
 

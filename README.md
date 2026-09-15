@@ -68,6 +68,8 @@ recon --check                                 # cek tools mana yang sudah terpas
 | `--fase NAMA` | pilih fase, pisah koma — contoh: `subdomain,urls,js` |
 | `--recon-subs` | enum subdomain dulu, lalu recon tiap subdomain aktif |
 | `--scope FILE` | batasi ke target in-scope saja (file `.txt`/`.csv` HackerOne) |
+| `--menu` | pilih target in-scope dan fase lewat menu keyboard (butuh `--scope`) |
+| `--chat` | mode asisten AI interaktif |
 | `--list-fase` | tampilkan semua fase yang tersedia |
 | `--check` | cek status semua tools |
 | `--setup-ai` | set atau ganti provider AI |

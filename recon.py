@@ -61,7 +61,8 @@ def parse_args():
         default=DEFAULT_OUTPUT_DIR,
         help="folder output (default: ./results)",
     )
-    parser.add_argument(
+    fase_group = parser.add_mutually_exclusive_group()
+    fase_group.add_argument(
         "--fase",
         metavar="FASE",
         default="",
@@ -71,7 +72,7 @@ def parse_args():
             "contoh: --fase subdomain,dns,ports"
         ),
     )
-    parser.add_argument(
+    fase_group.add_argument(
         "-A",
         action="store_true",
         help="jalankan fase pemetaan jaringan dasar saja (subdomain, dns, ports)",
@@ -107,6 +108,22 @@ def parse_args():
         ),
     )
     parser.add_argument(
+        "--menu",
+        action="store_true",
+        help=(
+            "mode menu keyboard: pilih target in-scope dan fase lewat menu.\n"
+            "dijalankan tanpa target, butuh --scope dan terminal interaktif"
+        ),
+    )
+    parser.add_argument(
+        "--chat",
+        action="store_true",
+        help=(
+            "mode asisten AI interaktif.\n"
+            "dijalankan tanpa target, butuh terminal interaktif dan provider AI aktif"
+        ),
+    )
+    parser.add_argument(
         "--setup-ai",
         action="store_true",
         dest="setup_ai",
@@ -129,10 +146,14 @@ def parse_args():
     )
 
     args = parser.parse_args()
-    # target boleh kosong: bila tanpa target + terminal interaktif + ada GEMINI_API_KEY,
-    # recon.py masuk mode chat (ditangani di main). Selain itu main yang beri error.
     if args.recon_subs and not args.domain:
         parser.error("--recon-subs hanya bisa digunakan dengan -d/--domain")
+    if args.menu and args.chat:
+        parser.error("--menu dan --chat tidak bisa digabung")
+    if (args.menu or args.chat) and (args.domain or args.subdomain or args.file):
+        parser.error("--menu dan --chat dijalankan tanpa target (-d/-s/-f)")
+    if args.menu and not args.scope:
+        parser.error("--menu butuh --scope")
     return args, parser
 
 
@@ -146,10 +167,12 @@ contoh penggunaan:
   python recon.py -d example.com --fase subdomain,dns,ports
   python recon.py -d example.com --recon-subs
   python recon.py -d example.com --recon-subs --fase urls,js,security
+  python recon.py --menu --scope scope.csv
+  python recon.py --chat
   python recon.py --setup-ai
 
 fase yang tersedia:
-  {chr(10)+'  '.join(f'{i+1:2}. {f}' for i, f in enumerate(FASE_LIST))}
+  {(chr(10)+'  ').join(f'{i+1:2}. {f}' for i, f in enumerate(FASE_LIST))}
 """
 
 
@@ -593,6 +616,19 @@ def _clean_target(raw_target: str) -> str:
     return t.rstrip("/")
 
 
+def _load_scope(path: str):
+    """Baca file scope, keluar dengan pesan jelas bila gagal."""
+    from core.scope import Scope
+    if not os.path.exists(path):
+        err(f"file scope tidak ditemukan: {path}")
+        sys.exit(1)
+    try:
+        return Scope.from_file(path)
+    except Exception as exc:
+        err(f"gagal membaca scope: {exc}")
+        sys.exit(1)
+
+
 def _run_verify(target: str, target_dir: str | None, scope) -> None:
     """Jalankan fase verifikasi opsional untuk satu target yang sudah di-recon."""
     if not target_dir:
@@ -631,37 +667,35 @@ def main():
         _setup_ai_wizard()
         sys.exit(0)
 
-    # ── tanpa target: mode menu (--scope) / chat AI / error ──────
-    if not (args.domain or args.subdomain or args.file):
+    # ── mode interaktif: --menu / --chat ─────────────────────────
+    if args.menu or args.chat:
+        if not (sys.stdin.isatty() and sys.stdout.isatty()):
+            err("mode --menu/--chat butuh terminal interaktif")
+            sys.exit(1)
         import core.ai as ai
-        tty = sys.stdin.isatty() and sys.stdout.isatty()
-        # --scope + terminal -> mode menu keyboard (tanpa perlu AI)
-        if args.scope and tty:
-            from core.scope import Scope
-            if not os.path.exists(args.scope):
-                err(f"file scope tidak ditemukan: {args.scope}")
-                sys.exit(1)
-            try:
-                sc = Scope.from_file(args.scope)
-            except Exception as exc:
-                err(f"gagal membaca scope: {exc}")
+        if args.menu:
+            sc = _load_scope(args.scope)
+            if not ai.specific_hosts(sc):
+                err("scope tidak berisi host spesifik, tidak ada yang bisa dipilih lewat menu")
+                info("untuk scope wildcard: recon.py -d <root> --recon-subs --scope <file>")
                 sys.exit(1)
             ai.menu_session(args.output, sc)
             sys.exit(0)
-        if tty and ai.available():
-            ok, msg = ai.ping()
-            if not ok:
-                err(f"API key tidak valid: {msg}")
-                console.print()
-                parser.print_help()
-                sys.exit(1)
-            ai.chat_session(args.output)
-            sys.exit(0)
+        if not ai.available():
+            err(f"provider AI '{ai.provider_name()}' belum dikonfigurasi")
+            info("jalankan: python recon.py --setup-ai")
+            sys.exit(1)
+        ok, msg = ai.ping()
+        if not ok:
+            err(f"provider AI tidak bisa dipakai: {msg}")
+            sys.exit(1)
+        ai.chat_session(args.output)
+        sys.exit(0)
+
+    # ── tanpa target: tampilkan help ─────────────────────────────
+    if not (args.domain or args.subdomain or args.file):
         console.print()
         parser.print_help()
-        if ai.available():
-            console.print()
-            err("mode chat butuh terminal interaktif")
         sys.exit(1)
 
     # ── tentukan daftar fase ─────────────────────────────────────
@@ -695,15 +729,7 @@ def main():
     # ── load scope (opsional) ────────────────────────────────────
     scope = None
     if args.scope:
-        from core.scope import Scope
-        if not os.path.exists(args.scope):
-            err(f"file scope tidak ditemukan: {args.scope}")
-            sys.exit(1)
-        try:
-            scope = Scope.from_file(args.scope)
-        except Exception as exc:
-            err(f"gagal membaca scope: {exc}")
-            sys.exit(1)
+        scope = _load_scope(args.scope)
         info(f"scope         : {scope.summary()}")
 
     # ── jalankan recon ───────────────────────────────────────────
