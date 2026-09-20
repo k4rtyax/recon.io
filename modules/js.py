@@ -22,7 +22,7 @@ def run(target: str, target_dir: str):
     t = TIMEOUTS["js"]
 
     if not os.path.exists(all_urls_path):
-        warn("all_urls.txt tidak ditemukan — jalankan fase 'urls' terlebih dahulu")
+        warn("all_urls.txt tidak ditemukan, jalankan fase 'urls' terlebih dahulu")
         return
 
     all_urls = read_lines(all_urls_path)
@@ -63,7 +63,7 @@ def run(target: str, target_dir: str):
     info(f"JS files ditemukan: {len(js_urls)}")
 
     if len(js_urls) > _JS_LIMIT:
-        warn(f"JS files melebihi limit ({len(js_urls)}), hanya {_JS_LIMIT} pertama yang dianalisis — set RECON_JS_LIMIT untuk override")
+        warn(f"JS files melebihi limit ({len(js_urls)}), hanya {_JS_LIMIT} pertama yang dianalisis, set RECON_JS_LIMIT untuk override")
 
     endpoints_all = []
     secrets_all   = []

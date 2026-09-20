@@ -88,7 +88,7 @@ def banner(version="2.0"):
 ░▒▓█▓▒░░▒▓█▓▒░▒▓████████▓▒░▒▓██████▓▒░ ░▒▓██████▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓██▓▒░▒▓█▓▒░░▒▓██████▓▒░  
 """
     console.print(f"[bold cyan]{art}[/bold cyan]")
-    console.print(f"  [dim]v{version} — universal web recon framework[/dim]\n")
+    console.print(f"  [dim]v{version}, universal web recon framework[/dim]\n")
 
 
 def tool_available(name: str) -> bool:

@@ -1,5 +1,5 @@
 """
-AI assistant — Google Gemini via REST API (stdlib, tanpa dependency tambahan).
+AI assistant, Google Gemini via REST API (stdlib, tanpa dependency tambahan).
 
 Dua mode:
   - attack_suggestions() : saran serangan berprioritas dari hasil recon (flag --ai)
@@ -9,8 +9,8 @@ API key dibaca dari env GEMINI_API_KEY (atau GOOGLE_API_KEY). Tidak pernah ditul
 ke disk maupun di-commit. Bila key tidak ada, fitur dilewati dengan aman.
 
 Provider (env RECON_AI_PROVIDER):
-  gemini  (default) — key dari GEMINI_API_KEY / GOOGLE_API_KEY
-  openai            — OpenAI-compatible: Groq / OpenRouter / OpenAI / Ollama (lokal)
+  gemini  (default), key dari GEMINI_API_KEY / GOOGLE_API_KEY
+  openai           , OpenAI-compatible: Groq / OpenRouter / OpenAI / Ollama (lokal)
                       set RECON_AI_BASE_URL (mis. https://api.groq.com/openai/v1
                       atau http://localhost:11434/v1 utk Ollama) + RECON_AI_MODEL;
                       key dari RECON_AI_KEY / OPENAI_API_KEY / GROQ_API_KEY
@@ -19,13 +19,13 @@ Provider (env RECON_AI_PROVIDER):
 Override via env:
   RECON_AI_MODEL      (default: gemini-2.5-flash untuk provider gemini)
   RECON_AI_TIMEOUT    (default: 120 detik)
-  RECON_AI_MAX_CHARS  (default: 100000 — batas konteks report yang dikirim)
+  RECON_AI_MAX_CHARS  (default: 100000, batas konteks report yang dikirim)
   RECON_AI_MAX_TOKENS (default: 4096)
 
 Privasi (hanya berlaku untuk provider cloud, endpoint lokal dilewati):
-  RECON_AI_REDACT        (default: 1 — sensor secret/header/email/JWT sebelum kirim)
-  RECON_AI_ZDR           (default: 1 — minta provider tidak menyimpan data, bila didukung)
-  RECON_AI_QUIET_PRIVACY (default: 0 — 1 untuk membungkam peringatan privasi)
+  RECON_AI_REDACT        (default: 1, sensor secret/header/email/JWT sebelum kirim)
+  RECON_AI_ZDR           (default: 1, minta provider tidak menyimpan data, bila didukung)
+  RECON_AI_QUIET_PRIVACY (default: 0, 1 untuk membungkam peringatan privasi)
 """
 
 import os
@@ -111,10 +111,10 @@ def _privacy_notice():
     if _PROVIDER == "gemini":
         warn("Gemini tier gratis: data bisa dipakai Google untuk pengembangan produk & direview manusia")
     if "openrouter.ai" in _BASE_URL:
-        warn("OpenRouter: mengaktifkan logging memberi hak pakai komersial atas data — biarkan logging mati")
-    info("jangan pakai bila program melarang data keluar — alternatif lokal: Ollama / LM Studio (--setup-ai)")
+        warn("OpenRouter: mengaktifkan logging memberi hak pakai komersial atas data, biarkan logging mati")
+    info("jangan pakai bila program melarang data keluar, alternatif lokal: Ollama / LM Studio (--setup-ai)")
     if not _REDACT:
-        warn("RECON_AI_REDACT=0 — data dikirim tanpa sensor")
+        warn("RECON_AI_REDACT=0, data dikirim tanpa sensor")
 
 
 def _ungrounded_hosts(answer: str, source: str, target: str) -> list[str]:
@@ -208,7 +208,7 @@ def _load_report(target_dir: str) -> str | None:
 def _call_gemini(system: str, user: str, silent: bool = False) -> str | None:
     key = _api_key()
     if not key:
-        warn("API_KEY tidak di-set — fitur AI dilewati (set di .env)")
+        warn("API_KEY tidak di-set, fitur AI dilewati (set di .env)")
         return None
 
     _privacy_notice()
@@ -326,7 +326,7 @@ def _call_llm(system: str, user: str, silent: bool = False) -> str | None:
 
 _SYS_ATTACK = (
     "Kamu pentester web / bug bounty hunter senior. Berdasarkan laporan recon di bawah, "
-    "susun rencana serangan BERPRIORITAS dan actionable dalam Bahasa Indonesia.\n"
+    "susun rencana serangan berprioritas dan actionable dalam Bahasa Indonesia.\n"
     "Untuk tiap temuan prioritas, jelaskan: (1) kenapa menarik, (2) langkah verifikasi/tes "
     "manual yang konkret, (3) tool / nuclei template / payload yang relevan. "
     "Rujuk host, URL, atau parameter spesifik dari data. Ringkas dan padat, tanpa basa-basi. "
@@ -334,17 +334,17 @@ _SYS_ATTACK = (
 )
 
 _SYS_ASK = (
-    "Kamu asisten recon untuk bug bounty. Jawab pertanyaan user HANYA berdasarkan laporan "
-    "recon yang diberikan, dalam Bahasa Indonesia. Spesifik — rujuk host/URL/temuan nyata "
+    "Kamu asisten recon untuk bug bounty. Jawab pertanyaan user hanya berdasarkan laporan "
+    "recon yang diberikan, dalam Bahasa Indonesia. Spesifik, rujuk host/URL/temuan nyata "
     "dari data. Bila data tidak cukup untuk menjawab, katakan terus terang."
 )
 
 
 _SYS_NUCLEI = (
     "Kamu pentester web. Diberi ringkasan teknologi & temuan recon sebuah target, "
-    "usulkan tag nuclei yang RELEVAN untuk verifikasi. HANYA template DETEKSI "
-    "non-destruktif — jangan usulkan sesuatu yang menulis, menghapus, brute-force, "
-    "atau membanjiri target. Balas HANYA satu array JSON berisi string tag "
+    "usulkan tag nuclei yang relevan untuk verifikasi. hanya template deteksi "
+    "non-destruktif, jangan usulkan sesuatu yang menulis, menghapus, brute-force, "
+    "atau membanjiri target. Balas hanya satu array JSON berisi string tag "
     'nuclei, contoh: ["springboot","exposure","cve"]. Tanpa teks lain, tanpa code fence. '
     "Maksimal 8 tag, urut dari paling relevan. Jika data tak cukup, balas []."
 )
@@ -391,7 +391,7 @@ def interpret_nuclei(target: str, results_text: str) -> str | None:
     ghosts = _ungrounded_hosts(answer, results_text, target)
     if ghosts:
         warn(f"tafsir AI menyebut host di luar output nuclei: {', '.join(ghosts)}")
-        answer += ("\n\n[!] host berikut disebut AI tapi tidak ada di output nuclei — "
+        answer += ("\n\n[!] host berikut disebut AI tapi tidak ada di output nuclei, "
                    f"abaikan sebagai klaim: {', '.join(ghosts)}\n")
     return answer
 
@@ -403,24 +403,24 @@ def attack_suggestions(target: str, target_dir: str):
         return
 
     info(f"meminta saran serangan dari Gemini ({_MODEL})...")
-    answer = _call_llm(_SYS_ATTACK, f"Target: {target}\n\n=== LAPORAN RECON ===\n{report}")
+    answer = _call_llm(_SYS_ATTACK, f"Target: {target}\n\n=== laporan recon ===\n{report}")
     if not answer:
         return
 
     ghosts = _ungrounded_hosts(answer, report, target)
     if ghosts:
         warn(f"saran AI menyebut host yang tidak ada di laporan: {', '.join(ghosts)}")
-        answer += ("\n\n[!] host berikut disebut AI tapi tidak ada di laporan recon — "
+        answer += ("\n\n[!] host berikut disebut AI tapi tidak ada di laporan recon, "
                    f"jangan ditindak tanpa verifikasi: {', '.join(ghosts)}\n")
 
     out = os.path.join(target_dir, "report", "ai_attack_suggestions.md")
     with open(out, "w") as f:
-        f.write(f"# AI Attack Suggestions — {target}\n\n")
+        f.write(f"# AI Attack Suggestions, {target}\n\n")
         f.write(f"*Dihasilkan {datetime.now():%Y-%m-%d %H:%M} via Gemini ({_MODEL}). "
                 f"Wajib verifikasi manual sebelum eksploitasi.*\n\n")
         f.write(answer + "\n")
 
-    section(f"AI — saran serangan ({target})")
+    section(f"AI, saran serangan ({target})")
     console.print(escape(answer))
     info(f"saran serangan disimpan: {out}")
 
@@ -428,17 +428,17 @@ def attack_suggestions(target: str, target_dir: str):
 def ask(target: str, target_dir: str, question: str):
     report = _load_report(target_dir)
     if not report:
-        err(f"report untuk {target} tidak ditemukan di {target_dir} — jalankan recon dulu")
+        err(f"report untuk {target} tidak ditemukan di {target_dir}, jalankan recon dulu")
         return
 
     answer = _call_llm(
         _SYS_ASK,
-        f"Target: {target}\n\n=== LAPORAN RECON ===\n{report}\n\n=== PERTANYAAN ===\n{question}",
+        f"Target: {target}\n\n=== laporan recon ===\n{report}\n\n=== pertanyaan ===\n{question}",
     )
     if not answer:
         return
 
-    section(f"AI — jawaban ({target})")
+    section(f"AI, jawaban ({target})")
     console.print(escape(answer))
 
 
@@ -446,33 +446,33 @@ def ask(target: str, target_dir: str, question: str):
 
 _SYS_CHAT = (
     "Kamu asisten recon CLI untuk bug bounty, berbahasa Indonesia. "
-    "Untuk SETIAP pesan user, balas HANYA satu objek JSON valid (tanpa code fence, "
+    "Untuk setiap pesan user, balas hanya satu objek JSON valid (tanpa code fence, "
     "tanpa teks lain) dengan skema:\n"
     '{"action":"set_scope"|"run"|"answer"|"chat",'
     '"target":<domain atau null>,"fases":<array fase atau null>,'
     '"scope":<teks scope / path file atau null>,"program":<link program atau null>,'
     '"message":<teks untuk user>}\n'
-    "- action=set_scope: user memberi SCOPE (pola domain, atau path file .csv/.txt) "
-    "dan/atau LINK PROGRAM. Di 'scope': jika user memberi PATH file, salin path apa adanya; "
-    "jika user memberi pola, NORMALKAN ke format kanonik — satu pola dipisah koma, awali '!' "
-    "untuk yang DIKECUALIKAN (contoh: user bilang '*.example.com kecuali blog' -> "
+    "- action=set_scope: user memberi scope (pola domain, atau path file .csv/.txt) "
+    "dan/atau link program. Di 'scope': jika user memberi path file, salin path apa adanya; "
+    "jika user memberi pola, normalkan ke format kanonik, satu pola dipisah koma, awali '!' "
+    "untuk yang dikecualikan (contoh: user bilang '*.example.com kecuali blog' -> "
     "'*.example.com, !blog.example.com'). Taruh link di 'program'. Di 'message' rangkum "
     "scope-nya dan tanya target mana yang mau di-recon.\n"
-    "- action=run  : user ingin MENJALANKAN recon pada sebuah target. Ekstrak domain & fase. "
-    "Kamu TIDAK menjalankan apa pun — hanya mengusulkan; user yang mengonfirmasi.\n"
-    "- action=answer: user bertanya tentang hasil recon. Jawab di 'message' dari KONTEKS LAPORAN.\n"
+    "- action=run  : user ingin menjalankan recon pada sebuah target. Ekstrak domain & fase. "
+    "Kamu tidak menjalankan apa pun, hanya mengusulkan; user yang mengonfirmasi.\n"
+    "- action=answer: user bertanya tentang hasil recon. Jawab di 'message' dari konteks laporan.\n"
     "- action=chat  : sapaan / klarifikasi / rekomendasi target. Isi 'message'.\n"
-    "ATURAN KRITIS: scope OPSIONAL. JANGAN PERNAH meminta scope, link program, atau izin "
+    "Aturan penting: scope opsional. Jangan meminta scope, link program, atau izin "
     "tambahan sebelum menjalankan. Begitu user menyebut sebuah domain, atau menjawab "
-    "'ya'/'oke'/'lanjut' setelah rekomendasi, LANGSUNG action=run. Pakai set_scope HANYA "
+    "'ya'/'oke'/'lanjut' setelah rekomendasi, langsung action=run. Pakai set_scope hanya "
     "bila user sendiri yang memberi file atau pola scope.\n"
     "Jika konteks memuat [scope aktif: ...], pakai itu untuk menyusun rekomendasi, dan "
     "sebutkan beberapa host paling menarik (mis. dev tools seperti bugzilla/phabricator, "
     "API, admin, auth) dengan alasan singkat lalu tanya mau mulai yang mana.\n"
     f"Fase valid: {', '.join(FASE_LIST)}. fases=null berarti semua fase.\n"
-    "STRATEGI SCOPE (hanya bila scope aktif): jika scope berisi wildcard (*.domain), boleh enumerate root lalu "
-    "filter ke scope. Jika scope hanya daftar host SPESIFIK (tanpa wildcard), JANGAN "
-    "sarankan fase 'subdomain' — recon tiap host langsung (fase web: urls, js, ports, "
+    "Strategi scope (hanya bila scope aktif): jika scope berisi wildcard (*.domain), boleh enumerate root lalu "
+    "filter ke scope. Jika scope hanya daftar host spesifik (tanpa wildcard), jangan "
+    "sarankan fase 'subdomain', recon tiap host langsung (fase web: urls, js, ports, "
     "fingerprint, security). Mengetes subdomain di luar daftar = di luar scope.\n"
     "Jangan memakai emoji."
 )
@@ -501,7 +501,7 @@ def _parse_intent(raw: str) -> dict | None:
 
 
 def intent(user: str, history: list[str] | None = None, ctx: str = "") -> dict | None:
-    """Satu putaran percakapan tanpa I/O console — dipakai mode TUI.
+    """Satu putaran percakapan tanpa I/O console, dipakai mode TUI.
     Return dict intent (action/target/fases/message) atau None bila gagal."""
     hist = "\n".join((history or [])[-6:])
     raw = _call_llm(_SYS_CHAT, f"{hist}\nUSER: {user}{ctx}", silent=True)
@@ -522,13 +522,13 @@ def _execute_run(target, fases, scope, output_dir):
     if scope is not None:
         in_scope, reason = scope.check(target)
         if not in_scope:
-            console.print(f"[bold red][AI][/bold red] {escape(target)} DI LUAR scope ({escape(reason)}). Tidak dijalankan.")
+            console.print(f"[bold red][AI][/bold red] {escape(target)} di luar scope ({escape(reason)}). Tidak dijalankan.")
             return None
 
     fases = [f for f in (fases or []) if f in FASE_LIST] or list(FASE_LIST)
     if scope is not None and "subdomain" in fases and not scope.is_wildcard_match(target):
         fases = [f for f in fases if f != "subdomain"]
-        info(f"{target}: host spesifik (scope non-wildcard) — fase subdomain dilewati")
+        info(f"{target}: host spesifik (scope non-wildcard), fase subdomain dilewati")
 
     # ── konfirmasi sebelum menjalankan ───────────────────────────
     console.print(
@@ -553,16 +553,16 @@ def _execute_run(target, fases, scope, output_dir):
         err(f"recon gagal: {exc}")
         return None
 
-    # pakai folder yang benar-benar dipakai runner — recon yang melewati
+    # pakai folder yang benar-benar dipakai runner, recon yang melewati
     # tengah malam membuat resolve_target_dir() menunjuk folder tanggal lain.
     cur_dir = ran_dir or resolve_target_dir(output_dir, target)
     console.print()
-    info("recon selesai — tanya hasilnya, atau minta 'analisis serangan'")
+    info("recon selesai, tanya hasilnya, atau minta 'analisis serangan'")
     return target, cur_dir
 
 
 def specific_hosts(scope) -> list[str]:
-    """Host non-wildcard di dalam scope — satu-satunya yang bisa dipilih lewat menu."""
+    """Host non-wildcard di dalam scope, satu-satunya yang bisa dipilih lewat menu."""
     return [a for a in scope.allow if not a.startswith("*.")]
 
 
@@ -571,7 +571,7 @@ def _menu_select(scope, output_dir):
     from core import menu as kbmenu
     hosts = specific_hosts(scope)
     if not hosts:
-        warn("scope hanya wildcard — tak ada host spesifik untuk dipilih via menu")
+        warn("scope hanya wildcard, tak ada host spesifik untuk dipilih via menu")
         warn("untuk wildcard: recon.py -d <root> --recon-subs --scope <file>")
         return None
     target = kbmenu.pick("pilih target (Esc = batal):", hosts)
@@ -589,7 +589,7 @@ def _menu_select(scope, output_dir):
 def menu_session(output_dir: str, scope):
     """Mode menu keyboard tanpa AI: pilih target dari scope + fase, jalankan berulang."""
     from core import menu as kbmenu
-    section("recon.io — mode menu (scope)")
+    section("recon.io, mode menu (scope)")
     console.print(scope.describe(), markup=False)
     while True:
         _menu_select(scope, output_dir)
@@ -601,10 +601,10 @@ def menu_session(output_dir: str, scope):
 def chat_session(output_dir: str):
     """Mode percakapan: AI mengusulkan, user menyetujui sebelum recon."""
     if not available():
-        warn(f"provider AI '{_PROVIDER}' belum dikonfigurasi — jalankan: python recon.py --setup-ai")
+        warn(f"provider AI '{_PROVIDER}' belum dikonfigurasi, jalankan: python recon.py --setup-ai")
         return
 
-    section("recon.io — asisten AI")
+    section("recon.io, asisten AI")
     console.print("[bold]Mau recon apa?[/bold] Sebut targetnya, mis. 'recon example.com fokus urls sama js'.")
     console.print("[dim]   opsional: beri file/pola scope kalau mau target difilter otomatis[/dim]")
     console.print("[dim]   ketik 'menu' untuk pilih target via keyboard  |  'keluar' untuk berhenti[/dim]\n")
@@ -644,7 +644,7 @@ def chat_session(output_dir: str):
         if cur_dir:
             rep = _load_report(cur_dir)
             if rep:
-                ctx += f"\n\n=== LAPORAN RECON ({cur_target}) ===\n{rep}"
+                ctx += f"\n\n=== laporan recon ({cur_target}) ===\n{rep}"
         hist = "\n".join(history[-6:])
         raw = _call_llm(_SYS_CHAT, f"{hist}\nUSER: {user}{ctx}")
         if not raw:

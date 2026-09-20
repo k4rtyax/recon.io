@@ -13,9 +13,9 @@ Universal web recon framework untuk bug bounty hunting.
 
 ---
 
-## Sebelum mulai — baca dulu
+## Sebelum mulai, baca dulu
 
-Gunakan tools ini **hanya untuk target yang diizinkan** — milik sendiri, atau program bug bounty/pentest yang sudah memberi izin. Scan aktif (port scan, fuzzing, dll) ke target tanpa izin itu **ilegal**, dan tanggung jawab sepenuhnya ada di tangan pengguna.
+Gunakan tools ini **hanya untuk target yang diizinkan**, milik sendiri, atau program bug bounty/pentest yang sudah memberi izin. Scan aktif (port scan, fuzzing, dll) ke target tanpa izin itu **ilegal**, dan tanggung jawab sepenuhnya ada di tangan pengguna.
 
 Fitur AI itu **opsional** dan bisa dimatikan. Kalau dinyalakan, isi laporan (termasuk temuan) akan dikirim ke provider AI yang dipilih. Jangan aktifkan kalau program melarang data keluar ke pihak ketiga.
 
@@ -25,7 +25,7 @@ Fitur AI itu **opsional** dan bisa dimatikan. Kalau dinyalakan, isi laporan (ter
 
 ## Instalasi
 
-Satu script untuk semua OS — deteksi otomatis (Kali, Ubuntu, Arch, Fedora, macOS).
+Satu script untuk semua OS, deteksi otomatis (Kali, Ubuntu, Arch, Fedora, macOS).
 
 ```bash
 chmod +x install.sh && ./install.sh
@@ -67,7 +67,7 @@ recon --check                                 # cek tools dan API mana yang suda
 | `-f FILE` | file daftar target, satu per baris |
 | `-o DIR` | folder simpan hasil (default: `./results`) |
 | `-A` | pemetaan jaringan saja (subdomain, dns, port) |
-| `--fase NAMA` | pilih fase, pisah koma — contoh: `subdomain,urls,js` |
+| `--fase NAMA` | pilih fase, pisah koma, contoh: `subdomain,urls,js` |
 | `--recon-subs` | enum subdomain dulu, lalu recon tiap subdomain aktif |
 | `--scope FILE` | batasi ke target in-scope saja (file `.txt`/`.csv` HackerOne) |
 | `--resume` | lanjutkan run terakhir, fase yang sudah selesai dilewati |
@@ -90,7 +90,7 @@ recon --check                                 # cek tools dan API mana yang suda
 | 3 | ports | scan port terbuka |
 | 4 | fingerprint | deteksi teknologi, WAF, header HTTP |
 | 5 | urls | kumpulkan semua URL dari crawling & arsip |
-| 6 | js | analisis file JavaScript — endpoint & secret |
+| 6 | js | analisis file JavaScript untuk endpoint & secret |
 | 7 | params | temukan parameter tersembunyi |
 | 8 | security | cek header keamanan, CORS, nuclei, subdomain takeover |
 | 9 | dirbrute | brute-force direktori & file tersembunyi |
@@ -116,7 +116,7 @@ Contoh percakapan:
 > ada endpoint menarik nggak dari hasil tadi?
 ```
 
-Sebut targetnya langsung — AI tidak akan menanyakan scope. Kalau kamu memang punya
+Sebut targetnya langsung, AI tidak akan menanyakan scope. Kalau kamu memang punya
 file scope, berikan saja dan AI otomatis memfilter target ke situ. Setiap scan tetap
 butuh konfirmasi manual dari kamu.
 
@@ -132,16 +132,16 @@ Kalau program melarang data keluar ke pihak ketiga, pakai Ollama atau LM Studio.
 
 | Provider | Keterangan |
 | -------- | ---------- |
-| **Gemini** (default) | Gratis — [ai.google.dev](https://ai.google.dev) |
-| **Groq** | Gratis, cepat — [console.groq.com](https://console.groq.com) |
-| **OpenRouter** | Akses banyak model — [openrouter.ai](https://openrouter.ai) |
-| **OpenAI** | GPT-4o dll — [platform.openai.com](https://platform.openai.com) |
-| **Mistral** | Ada tier gratis — [console.mistral.ai](https://console.mistral.ai) |
-| **Together.ai** | Banyak model open-source — [api.together.xyz](https://api.together.xyz) |
-| **Perplexity** | Model dengan akses web — [perplexity.ai](https://www.perplexity.ai) |
-| **Ollama** | Lokal, offline, tanpa key — [ollama.ai](https://ollama.ai) |
-| **LM Studio** | Lokal, pakai GUI — [lmstudio.ai](https://lmstudio.ai) |
-| **Provider lain** | Apa saja yang kompatibel OpenAI — isi BASE_URL + MODEL + API_KEY |
+| **Gemini** (default) | Gratis, [ai.google.dev](https://ai.google.dev) |
+| **Groq** | Gratis, cepat, [console.groq.com](https://console.groq.com) |
+| **OpenRouter** | Akses banyak model, [openrouter.ai](https://openrouter.ai) |
+| **OpenAI** | GPT-4o dll, [platform.openai.com](https://platform.openai.com) |
+| **Mistral** | Ada tier gratis, [console.mistral.ai](https://console.mistral.ai) |
+| **Together.ai** | Banyak model open-source, [api.together.xyz](https://api.together.xyz) |
+| **Perplexity** | Model dengan akses web, [perplexity.ai](https://www.perplexity.ai) |
+| **Ollama** | Lokal, offline, tanpa key, [ollama.ai](https://ollama.ai) |
+| **LM Studio** | Lokal, pakai GUI, [lmstudio.ai](https://lmstudio.ai) |
+| **Provider lain** | Apa saja yang kompatibel OpenAI, isi BASE_URL + MODEL + API_KEY |
 
 > Provider cloud (semua kecuali Ollama & LM Studio) akan menerima isi laporan recon untuk dianalisis. Kalau data tidak boleh keluar, pakai Ollama atau LM Studio.
 
@@ -173,7 +173,7 @@ cp .env.example .env   # buat file pengaturan dari template
 ## API OSINT (opsional, gratis)
 
 Fase subdomain otomatis memakai crt.sh tanpa perlu key. Kalau mau hasil lebih banyak,
-isi key gratis di `.env` — yang kosong dilewati begitu saja.
+isi key gratis di `.env`, yang kosong dilewati begitu saja.
 
 | Layanan | Free tier |
 | ------- | --------- |
@@ -203,7 +203,7 @@ recon -d example.com --diff --notify   # plus kirim ke Discord/Slack/Telegram
 ```
 
 Run pertama membuat baseline. Run berikutnya membandingkan subdomain, port, URL,
-endpoint, dan bucket — yang dilaporkan hanya selisihnya. Untuk jalan otomatis,
+endpoint, dan bucket, lalu melaporkan selisihnya saja. Untuk jalan otomatis,
 panggil dari cron:
 
 ```bash

@@ -123,7 +123,7 @@ def run(target: str, target_dir: str):
         )
         info("nuclei takeover selesai")
     else:
-        warn("takeover check dilewati — subzy tidak ada atau alive_subdomains.txt belum ada")
+        warn("takeover check dilewati, subzy tidak ada atau alive_subdomains.txt belum ada")
 
     # ── CORS misconfiguration ─────────────────────────────────────
     cors_out = os.path.join(out, "cors_results.txt")
@@ -164,7 +164,7 @@ def _check_cors(url: str, out_file: str, timeout: int):
             continue
 
         # Hanya origin reflection yang benar-benar misconfiguration.
-        # ACAO: * (tanpa kondisi) by-design untuk API/CDN publik — bukan bug.
+        # ACAO: * (tanpa kondisi) by-design untuk API/CDN publik, bukan bug.
         # ACAO: * + credentials ditolak browser, jadi tidak exploitable.
         # Karena origin uji termasuk "null", refleksi null juga tertangkap di sini.
         if acao == origin:

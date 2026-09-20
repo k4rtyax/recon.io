@@ -29,7 +29,7 @@ def _download_wordlist() -> str | None:
         if os.path.getsize(_WORDLIST_BUNDLED) > 0:
             info(f"wordlist diunduh ke: {_WORDLIST_BUNDLED}")
             return _WORDLIST_BUNDLED
-        # file ada tapi kosong — hapus agar tidak dipakai
+        # file ada tapi kosong, hapus agar tidak dipakai
         os.remove(_WORDLIST_BUNDLED)
     except Exception as e:
         warn(f"gagal mengunduh wordlist: {e}")

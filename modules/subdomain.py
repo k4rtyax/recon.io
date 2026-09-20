@@ -58,9 +58,9 @@ def _wildcard_ips(target: str) -> set[str]:
     try:
         return {r[4][0] for r in socket.getaddrinfo(probe, None)}
     except socket.gaierror:
-        return set()  # NXDOMAIN — tidak ada wildcard, normal
+        return set()  # NXDOMAIN, tidak ada wildcard, normal
     except OSError as e:
-        _warn(f"wildcard DNS check gagal ({e}) — filter wildcard dilewati, hasil mungkin mengandung false positive")
+        _warn(f"wildcard DNS check gagal ({e}), filter wildcard dilewati, hasil mungkin mengandung false positive")
         return set()
 
 
@@ -112,7 +112,7 @@ def run(target: str, target_dir: str):
     if tool_available(TOOLS["amass"]):
         major = _amass_major_version()
         if major is not None and major >= 5:
-            warn(f"amass v{major} memakai arsitektur engine (bukan one-shot), dilewati — passive enum dicover subfinder")
+            warn(f"amass v{major} memakai arsitektur engine (bukan one-shot), dilewati, passive enum dicover subfinder")
         else:
             exec_cmd(
                 [TOOLS["amass"], "enum", "-passive", "-d", target, "-o", amass_out],

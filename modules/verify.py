@@ -6,12 +6,12 @@ Tiga kelas cek, semua NON-DESTRUKTIF:
   - open_redirect: inject canary ke param redirect, cek header Location (tanpa follow)
   - exposed_tool : satu GET ke endpoint exposed_tool, catat status (near-passive)
 
-Guardrail wajib untuk SETIAP request aktif:
+Guardrail wajib untuk setiap request aktif:
   1. scope re-check pada host tepat sebelum request (URL gau/wayback bisa ke pihak ketiga)
-  2. chokepoint konfirmasi manusia dengan dry-run (default TIDAK)
+  2. chokepoint konfirmasi manusia dengan dry-run (default tidak)
   3. audit log ke verify/exploit_log.txt
 
-AI hanya MENGUSULKAN kandidat & MENAFSIRKAN hasil — tidak pernah menembak sendiri.
+AI hanya MENGUSULKAN kandidat & MENAFSIRKAN hasil, tidak pernah menembak sendiri.
 Alur: kandidat -> [pilih] -> dry-run + [konfirmasi] -> scope re-check -> jalankan -> bukti -> tafsir AI.
 """
 
@@ -67,8 +67,8 @@ def _in_target(scope, host: str, target: str) -> tuple[bool, str]:
 
     Tanpa pola allow (tanpa --scope, atau file scope yang tidak menghasilkan
     satu pun pola in-scope) Scope.check() mengembalikan allow-all. Untuk request
-    aktif itu tidak aman — URL hasil wayback/gau bisa menunjuk CDN atau domain
-    pihak ketiga — jadi di sini kita jatuhkan ke pagar ketat target+subdomain.
+    aktif itu tidak aman, URL hasil wayback/gau bisa menunjuk CDN atau domain
+    pihak ketiga, jadi di sini kita jatuhkan ke pagar ketat target+subdomain.
     Pola deny tetap dihormati.
     """
     if not host:
@@ -159,7 +159,7 @@ def _build_candidates(target_dir: str) -> list[dict]:
         {"kind": "nuclei", "tags": "default-login",
          "label": "default login", "why": "cek halaman login kredensial default"},
     ]
-    # subzy/nuclei tetap membuat file output walau nol temuan — cek isinya.
+    # subzy/nuclei tetap membuat file output walau nol temuan, cek isinya.
     if read_lines(os.path.join(target_dir, "security", "takeover.txt")):
         cands.append({"kind": "nuclei", "tags": "takeover",
                       "label": "subdomain takeover", "why": "ada kandidat dari fase security"})
@@ -206,9 +206,9 @@ def _log(log_path: str, line: str):
 
 
 def _confirm(title: str, lines: list[str]) -> bool:
-    """Chokepoint tunggal: tampilkan request PERSIS, minta persetujuan (default TIDAK)."""
+    """Chokepoint tunggal: tampilkan request persis, minta persetujuan (default tidak)."""
     from core import menu as kbmenu
-    console.print(f"\n[bold]dry-run — {title}:[/bold]")
+    console.print(f"\n[bold]dry-run, {title}:[/bold]")
     for ln in lines:
         console.print(f"  [cyan]{escape(ln)}[/cyan]")
     console.print("  [dim]non-destruktif; hanya ke host in-scope[/dim]")
@@ -226,7 +226,7 @@ def _run_nuclei(url: str, tags: str, out: str) -> tuple[list[str], str]:
             os.replace(evidence, backup)
             info(f"bukti run sebelumnya disimpan sebagai {os.path.basename(backup)}")
         except OSError as exc:
-            warn(f"gagal memindah bukti lama ({exc}) — hasil bisa tercampur run sebelumnya")
+            warn(f"gagal memindah bukti lama ({exc}), hasil bisa tercampur run sebelumnya")
 
     rc, _, stderr = exec_cmd(
         [TOOLS["nuclei"], "-u", url, "-tags", tags,
@@ -238,7 +238,7 @@ def _run_nuclei(url: str, tags: str, out: str) -> tuple[list[str], str]:
         why = detail[-1] if detail else f"rc={rc}"
         if rc == -1 and "timeout" in why.lower():
             why = f"timeout {_VERIFY_TIMEOUT}s (atur lewat RECON_TIMEOUT_VERIFY)"
-        warn(f"nuclei [{tags}] tidak selesai normal: {why} — hasil di bawah bisa parsial")
+        warn(f"nuclei [{tags}] tidak selesai normal: {why}, hasil di bawah bisa parsial")
 
     return (read_lines(evidence) if os.path.exists(evidence) else []), evidence
 
@@ -296,16 +296,16 @@ def _run_exposed_tool(urls, out, scope, target, log_path) -> tuple[list[str], st
 
 
 def run_verify(target: str, target_dir: str, scope=None):
-    """Entry point verifikasi. Interaktif — tidak dipanggil dari runner paralel."""
-    section(f"verifikasi PoC — {target}")
+    """Entry point verifikasi. Interaktif, tidak dipanggil dari runner paralel."""
+    section(f"verifikasi PoC, {target}")
 
     if not (sys.stdin.isatty() and sys.stdout.isatty()):
-        warn("verifikasi butuh terminal interaktif (konfirmasi manual) — dilewati")
+        warn("verifikasi butuh terminal interaktif (konfirmasi manual), dilewati")
         return
 
     in_scope, reason = _in_target(scope, target, target)
     if not in_scope:
-        err(f"{target} DI LUAR scope ({reason}) — verifikasi dibatalkan")
+        err(f"{target} di luar scope ({reason}), verifikasi dibatalkan")
         return
 
     out = os.path.join(target_dir, "verify")
@@ -316,23 +316,23 @@ def run_verify(target: str, target_dir: str, scope=None):
     candidates = _build_candidates(target_dir)
     nuclei_needed = any(c["kind"] == "nuclei" for c in candidates)
     if nuclei_needed and not tool_available(TOOLS["nuclei"]):
-        warn("nuclei tidak ditemukan — kandidat nuclei tidak akan bisa dijalankan")
+        warn("nuclei tidak ditemukan, kandidat nuclei tidak akan bisa dijalankan")
     if not tool_available(TOOLS["curl"]):
-        warn("curl tidak ditemukan — kandidat open_redirect/exposed_tool tidak bisa dijalankan")
+        warn("curl tidak ditemukan, kandidat open_redirect/exposed_tool tidak bisa dijalankan")
 
     if not candidates:
         warn("tidak ada kandidat verifikasi")
         return
 
     from core import menu as kbmenu
-    labels = [f"{c['label']}  — {c['why']}" for c in candidates]
+    labels = [f"{c['label']} , {c['why']}" for c in candidates]
     by_label = dict(zip(labels, candidates))
 
     console.print("[dim]pilih cek (space = toggle, enter = ok). "
                   "tiap cek dikonfirmasi lagi sebelum dikirim.[/dim]")
     picked = kbmenu.multi_pick("kandidat verifikasi:", labels)
     if not picked:
-        info("tidak ada cek dipilih — dibatalkan")
+        info("tidak ada cek dipilih, dibatalkan")
         _log(log_path, "user tidak memilih cek apa pun")
         return
 
@@ -357,10 +357,10 @@ def run_verify(target: str, target_dir: str, scope=None):
             cmd = (f"{TOOLS['nuclei']} -u {url} -tags {c['tags']} "
                    f"-severity critical,high,medium,low -silent")
             if not _confirm(f"nuclei [{c['tags']}]", [cmd]):
-                _log(log_path, f"DITOLAK kind=nuclei tags={c['tags']}")
+                _log(log_path, f"ditolak kind=nuclei tags={c['tags']}")
                 continue
             info(f"menjalankan: {c['label']}...")
-            _log(log_path, f"JALAN kind=nuclei tags={c['tags']} url={url}")
+            _log(log_path, f"jalan kind=nuclei tags={c['tags']} url={url}")
             hits, ev = _run_nuclei(url, c["tags"], out)
 
         elif kind == "open_redirect":
@@ -371,10 +371,10 @@ def run_verify(target: str, target_dir: str, scope=None):
             if len(c["urls"]) > len(sample):
                 lines.append(f"... (+{len(c['urls']) - len(sample)} URL lagi, HEAD only, tanpa follow)")
             if not _confirm(f"open redirect ({len(c['urls'])} URL, canary={_CANARY})", lines):
-                _log(log_path, "DITOLAK kind=open_redirect")
+                _log(log_path, "ditolak kind=open_redirect")
                 continue
             info(f"menjalankan: {c['label']}...")
-            _log(log_path, f"JALAN kind=open_redirect n={len(c['urls'])}")
+            _log(log_path, f"jalan kind=open_redirect n={len(c['urls'])}")
             hits, ev = _run_open_redirect(c["urls"], out, scope, target, log_path)
 
         elif kind == "exposed_tool":
@@ -385,16 +385,16 @@ def run_verify(target: str, target_dir: str, scope=None):
             if len(c["urls"]) > len(sample):
                 lines.append(f"... (+{len(c['urls']) - len(sample)} URL lagi, GET tunggal)")
             if not _confirm(f"exposed tool probe ({len(c['urls'])} URL)", lines):
-                _log(log_path, "DITOLAK kind=exposed_tool")
+                _log(log_path, "ditolak kind=exposed_tool")
                 continue
             info(f"menjalankan: {c['label']}...")
-            _log(log_path, f"JALAN kind=exposed_tool n={len(c['urls'])}")
+            _log(log_path, f"jalan kind=exposed_tool n={len(c['urls'])}")
             hits, ev = _run_exposed_tool(c["urls"], out, scope, target, log_path)
 
         else:
             continue
 
-        info(f"selesai — {len(hits)} temuan")
+        info(f"selesai, {len(hits)} temuan")
         _log(log_path, f"HASIL kind={kind} temuan={len(hits)}")
         if hits:
             evidence_files.append(ev)
@@ -421,8 +421,8 @@ def run_verify(target: str, target_dir: str, scope=None):
             section("tafsir AI")
             console.print(escape(verdict))
             with open(os.path.join(out, "verify_analysis.md"), "w") as f:
-                f.write(f"# Verifikasi — {target}\n\n")
-                f.write(f"*{datetime.now():%Y-%m-%d %H:%M} — wajib verifikasi manual "
+                f.write(f"# Verifikasi, {target}\n\n")
+                f.write(f"*{datetime.now():%Y-%m-%d %H:%M}, wajib verifikasi manual "
                         f"sebelum submit.*\n\n{verdict}\n")
     except Exception as exc:
         warn(f"tafsir AI dilewati: {exc}")

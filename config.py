@@ -132,7 +132,7 @@ URL_CATEGORIES = {
         ],
         "params": ["id", "user_id", "account_id", "order_id", "invoice_id", "doc_id", "uid"],
     },
-    # Endpoint versi lama — sering kurang di-maintain
+    # Endpoint versi lama, sering kurang di-maintain
     "old_version": {
         "path_segments": ["v1", "v2", "v0", "v3", "v4", "rest"],
         "path_regex": [r"/api/v\d+(?:/|$)", r"/rest/v\d+(?:/|$)"],
@@ -200,10 +200,10 @@ REQUIRED_SECURITY_HEADERS = [
 WORDLIST_PATHS = [
     os.environ.get("RECON_WORDLIST", ""),
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "wordlists", "common.txt"),
-    # macOS — homebrew seclists
+    # macOS, homebrew seclists
     "/opt/homebrew/share/seclists/Discovery/Web-Content/common.txt",
     "/usr/local/share/seclists/Discovery/Web-Content/common.txt",
-    # Linux — sistem
+    # Linux, sistem
     "/usr/share/wordlists/dirb/common.txt",
     "/usr/share/dirb/wordlists/common.txt",
     "/usr/share/seclists/Discovery/Web-Content/common.txt",

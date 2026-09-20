@@ -91,7 +91,7 @@ def render(diff: dict, target: str) -> str:
     if not diff:
         return f"{target}: tidak ada perubahan dari run sebelumnya"
 
-    lines = [f"{target} — perubahan dari run sebelumnya:"]
+    lines = [f"{target}, perubahan dari run sebelumnya:"]
     for rel in TRACKED:
         entry = diff.get(rel)
         if not entry:

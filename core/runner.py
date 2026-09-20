@@ -1,5 +1,5 @@
 """
-Runner — orkestrasi semua fase recon untuk satu target.
+Runner, orkestrasi semua fase recon untuk satu target.
 Fase independen dijalankan secara paralel menggunakan ThreadPoolExecutor.
 
 Urutan eksekusi:
@@ -142,7 +142,7 @@ def _print_summary(report: Report):
     s = report.get_stats()
 
     if sink_active():
-        section(f"ringkasan — {report.target}")
+        section(f"ringkasan, {report.target}")
         for label, key, critical in _SUMMARY_ROWS:
             val = s[key]
             if critical and val > 0:
@@ -151,7 +151,7 @@ def _print_summary(report: Report):
                 info(f"{label:<20}: {val}")
         return
 
-    table = Table(title=f"ringkasan — {report.target}", show_header=True, header_style="bold cyan")
+    table = Table(title=f"ringkasan, {report.target}", show_header=True, header_style="bold cyan")
     table.add_column("temuan", style="white")
     table.add_column("jumlah", justify="right")
 
@@ -173,7 +173,7 @@ def run_target(
     """Jalankan semua fase untuk satu target.
 
     Return folder output target (dipakai caller untuk fase lanjutan seperti
-    verifikasi — jangan hitung ulang dari datetime.now(), karena recon panjang
+    verifikasi, jangan hitung ulang dari datetime.now(), karena recon panjang
     bisa melewati tengah malam dan menghasilkan folder tanggal yang berbeda),
     atau None bila fase tidak valid.
     """

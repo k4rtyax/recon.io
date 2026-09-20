@@ -51,7 +51,7 @@ def run(target: str, target_dir: str):
             all_urls += stdout.splitlines()
         info("waybackurls selesai")
     else:
-        warn("gau/waybackurls tidak ditemukan — URL historis dilewati")
+        warn("gau/waybackurls tidak ditemukan, URL historis dilewati")
 
     if not all_urls:
         warn("tidak ada URL yang berhasil dikumpulkan")

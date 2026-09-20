@@ -1,7 +1,7 @@
 """
 Menu interaktif keyboard (panah / checkbox) via simple-term-menu.
 
-Degrade aman: bila lib tidak terpasang ATAU output non-TTY (pipe/CI),
+Degrade aman: bila lib tidak terpasang atau output non-TTY (pipe/CI),
 otomatis fallback ke input teks bernomor. Jadi tetap jalan di mana saja.
 """
 
@@ -21,7 +21,7 @@ def _enabled() -> bool:
 
 
 def pick(title: str, options: list[str]) -> str | None:
-    """Pilih SATU dari options. Return string terpilih, atau None bila batal."""
+    """Pilih satu dari options. Return string terpilih, atau None bila batal."""
     options = list(options)
     if not options:
         return None

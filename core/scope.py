@@ -1,17 +1,17 @@
 """
-Scope matcher — menentukan apakah sebuah host boleh (in-scope) dites.
+Scope matcher, menentukan apakah sebuah host boleh (in-scope) dites.
 
 Aturan pola (satu per baris / item):
   example.com            → exact, hanya host itu
   *.example.com          → apex + semua subdomain (a.example.com, a.b.example.com, example.com)
   example.*.google.com   → middle wildcard (example.us.google.com, example.eu.google.com)
   example.*              → TLD wildcard (example.com, example.co.id, example.de)
-  !blog.example.com      → DIKECUALIKAN (out of scope), menang atas pola allow
+  !blog.example.com      → dikecualikan (out of scope), menang atas pola allow
   !*.dev.example.com     → kecualikan seluruh cabang dev
 
 Default-deny: host yang tidak cocok pola allow mana pun = out of scope.
-Bila scope KOSONG (tak ada pola allow), check() mengembalikan (True, "scope tidak diset")
-— caller yang memutuskan apakah mau memperingatkan.
+Bila scope kosong (tak ada pola allow), check() mengembalikan (True, "scope tidak diset"),
+caller yang memutuskan apakah mau memperingatkan.
 
 Bukan kontrol keamanan: ini pagar etis & penangkap scope, bukan penegak otorisasi.
 """

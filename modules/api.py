@@ -118,7 +118,7 @@ def _introspect(url: str) -> tuple[bool, dict | None]:
 
 
 def _error_text(body: str) -> str:
-    """Pesan error hasil parse + body mentah — kutip di dalam JSON ter-escape."""
+    """Pesan error hasil parse + body mentah, kutip di dalam JSON ter-escape."""
     try:
         data = json.loads(body)
     except ValueError:
@@ -226,7 +226,7 @@ def run(target: str, target_dir: str):
         if enabled:
             raw[url] = data
             types = len(data["data"]["__schema"].get("types") or [])
-            gql_lines.append(f"{url} [introspeksi: AKTIF] [tipe: {types}]")
+            gql_lines.append(f"{url} [introspeksi: aktif] [tipe: {types}]")
         else:
             gql_lines.append(f"{url} [introspeksi: nonaktif]")
         fp_lines.append(f"{url} [{_fingerprint(url)}]")
@@ -239,7 +239,7 @@ def run(target: str, target_dir: str):
 
     info(f"endpoint GraphQL: {len(endpoints)}")
     for line in gql_lines:
-        if "AKTIF" in line:
+        if "aktif" in line:
             warn(f"introspeksi GraphQL terbuka: {line}")
 
     # ── OpenAPI / Swagger ─────────────────────────────────────────

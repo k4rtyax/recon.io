@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-recon.io — universal web recon framework
+recon.io, universal web recon framework
 -----------------------------------------
 Penggunaan:
   python recon.py -d example.com
@@ -31,7 +31,7 @@ from core.runner import run_target
 def parse_args():
     parser = argparse.ArgumentParser(
         prog="recon.py",
-        description="recon.io — universal web recon framework",
+        description="recon.io, universal web recon framework",
         formatter_class=argparse.RawTextHelpFormatter,
         epilog=_help_epilog(),
     )
@@ -236,7 +236,7 @@ def _check_tools():
         "nmap":        "brew install nmap  /  apt install nmap",
     }
 
-    table = Table(title="recon.io — status tools", header_style="bold cyan")
+    table = Table(title="recon.io, status tools", header_style="bold cyan")
     table.add_column("tool",    style="bold white", min_width=14)
     table.add_column("status",  min_width=10)
     table.add_column("install jika belum ada")
@@ -333,7 +333,7 @@ def _setup_ai_wizard():
             info("dibuat .env dari template")
         else:
             with open(env_path, "w") as f:
-                f.write("# recon.io — konfigurasi\n")
+                f.write("# recon.io, konfigurasi\n")
 
     def _read_val(key: str) -> str:
         try:
@@ -439,7 +439,7 @@ def _setup_ai_wizard():
             if e.code in (400, 401, 403):
                 return False, f"key tidak valid (HTTP {e.code})"
             if e.code >= 500:
-                return False, f"server error ({e.code}) — coba lagi nanti"
+                return False, f"server error ({e.code}), coba lagi nanti"
             # 404 dll: endpoint ok, key kemungkinan diterima
             return True, ""
         except urllib.error.URLError as e:
@@ -473,11 +473,11 @@ def _setup_ai_wizard():
     else:
         current = "belum dikonfigurasi"
 
-    section("recon.io — setup AI")
+    section("recon.io, setup AI")
     console.print(f"  provider saat ini: [bold cyan]{current}[/bold cyan]\n")
     console.print("  Pilih provider AI:\n")
-    console.print("    [bold]1)[/bold] Gemini      (gratis — ai.google.dev)")
-    console.print("    [bold]2)[/bold] Groq        (gratis, cepat — console.groq.com)")
+    console.print("    [bold]1)[/bold] Gemini      (gratis, ai.google.dev)")
+    console.print("    [bold]2)[/bold] Groq        (gratis, cepat, console.groq.com)")
     console.print("    [bold]3)[/bold] OpenRouter  (openrouter.ai)")
     console.print("    [bold]4)[/bold] Ollama      (lokal, tanpa key)")
     console.print("    [bold]5)[/bold] Provider lain  (OpenAI, Mistral, Together.ai, ...)")
@@ -736,7 +736,7 @@ def _post_run(target: str, target_dir: str | None, output_dir: str,
             info(f"baseline dibuat ({saved} file), diff aktif mulai run berikutnya")
         else:
             body = diff.render(changes, target)
-            section(f"perubahan sejak run sebelumnya — {target}")
+            section(f"perubahan sejak run sebelumnya, {target}")
             console.print(body)
 
     if do_notify:
@@ -744,7 +744,7 @@ def _post_run(target: str, target_dir: str | None, output_dir: str,
         if not notify.enabled():
             warn("--notify aktif tapi belum ada kanal (atur RECON_NOTIFY_* di .env)")
             return
-        notify.send(f"recon.io — {target}", body or _summary_text(target, target_dir))
+        notify.send(f"recon.io, {target}", body or _summary_text(target, target_dir))
 
 
 def main():
@@ -861,7 +861,7 @@ def main():
         info(f"output        : {args.output}")
 
         # step 1: enumerasi subdomain di root
-        section(f"[1] enumerasi subdomain — {root}")
+        section(f"[1] enumerasi subdomain, {root}")
         try:
             run_target(target=root, output_dir=args.output, fases=["subdomain"],
                        resume=args.resume)

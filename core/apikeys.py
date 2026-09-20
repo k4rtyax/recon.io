@@ -21,18 +21,18 @@ _UA      = "recon.io/2.0"
 # ── registry provider ───────────────────────────────────────────
 # (nama, env var yang dibutuhkan, keterangan free tier)
 _PROVIDERS = [
-    ("chaos",          ("CHAOS_API_KEY",),                     "gratis utk personal use — chaos.projectdiscovery.io"),
-    ("securitytrails", ("SECURITYTRAILS_API_KEY",),            "free tier terbatas — securitytrails.com"),
-    ("virustotal",     ("VIRUSTOTAL_API_KEY",),                "public API 500 req/hari — virustotal.com"),
-    ("shodan",         ("SHODAN_API_KEY",),                    "free key terbatas — shodan.io"),
-    ("censys",         ("CENSYS_API_ID", "CENSYS_API_SECRET"), "free tier kredit bulanan — censys.io"),
-    ("netlas",         ("NETLAS_API_KEY",),                    "community 50 req/hari — netlas.io"),
-    ("leakix",         ("LEAKIX_API_KEY",),                    "gratis — leakix.net"),
+    ("chaos",          ("CHAOS_API_KEY",),                     "gratis utk personal use, chaos.projectdiscovery.io"),
+    ("securitytrails", ("SECURITYTRAILS_API_KEY",),            "free tier terbatas, securitytrails.com"),
+    ("virustotal",     ("VIRUSTOTAL_API_KEY",),                "public API 500 req/hari, virustotal.com"),
+    ("shodan",         ("SHODAN_API_KEY",),                    "free key terbatas, shodan.io"),
+    ("censys",         ("CENSYS_API_ID", "CENSYS_API_SECRET"), "free tier kredit bulanan, censys.io"),
+    ("netlas",         ("NETLAS_API_KEY",),                    "community 50 req/hari, netlas.io"),
+    ("leakix",         ("LEAKIX_API_KEY",),                    "gratis, leakix.net"),
 ]
 
 _KEYLESS = [
-    ("crt.sh",            "tanpa key — certificate transparency"),
-    ("shodan-internetdb", "tanpa key — internetdb.shodan.io"),
+    ("crt.sh",            "tanpa key, certificate transparency"),
+    ("shodan-internetdb", "tanpa key, internetdb.shodan.io"),
 ]
 
 _warned: set[str] = set()
@@ -322,5 +322,5 @@ def passive_subdomains(domain: str, timeout: int = _TIMEOUT) -> list[str]:
             parts.append(f"{name}:{len(res)}")
 
     if parts:
-        info(f"OSINT pasif — {', '.join(parts)} — total {len(found)} unik")
+        info(f"OSINT pasif, {', '.join(parts)}, total {len(found)} unik")
     return sorted(found)

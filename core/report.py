@@ -127,7 +127,7 @@ class Report:
 
         findings_text = "\n".join(findings) if findings else "tidak ada temuan menonjol"
 
-        md = f"""# Recon Report — {self.target}
+        md = f"""# Recon Report, {self.target}
 
 **Target**   : `{self.target}`
 **Tanggal**  : {self.started.strftime('%Y-%m-%d %H:%M')}
@@ -170,7 +170,7 @@ class Report:
 
         txt = f"""
 {'='*56}
-RECON REPORT — {self.target}
+RECON REPORT, {self.target}
 {'='*56}
 Target   : {self.target}
 Tanggal  : {self.started.strftime('%Y-%m-%d %H:%M')}
@@ -217,7 +217,7 @@ TEMUAN PRIORITAS
         wc_file = f"{d}/subdomain/wildcard_dns.txt"
         if os.path.exists(wc_file):
             wc_ips = self._read_head(wc_file, 5)
-            md += f"\n**Wildcard DNS terdeteksi** — subdomain berikut mungkin false positive:\n\n```\n{wc_ips}\n```\n"
+            md += f"\n**Wildcard DNS terdeteksi**, subdomain berikut mungkin false positive:\n\n```\n{wc_ips}\n```\n"
 
         catchall_file = f"{d}/subdomain/catchall_subdomains.txt"
         if os.path.exists(catchall_file) and _count(catchall_file) > 0:
@@ -351,7 +351,7 @@ TEMUAN PRIORITAS
                 f.write(s)
             f.write(
                 f"\n---\n*dibuat otomatis oleh recon.io "
-                f"— {datetime.now().strftime('%Y-%m-%d %H:%M')}*\n"
+                f"pada {datetime.now().strftime('%Y-%m-%d %H:%M')}*\n"
                 f"*wajib verifikasi manual sebelum submit*\n"
             )
 

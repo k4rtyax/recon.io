@@ -1,5 +1,5 @@
 """
-Mode TUI — antarmuka layar penuh untuk recon interaktif.
+Mode TUI, antarmuka layar penuh untuk recon interaktif.
 Log tiap fase dialirkan ke panel lewat sink di core.utils, jadi tidak ada
 yang menulis langsung ke stdout selama TUI hidup.
 """
@@ -130,11 +130,11 @@ class ReconTUI(App):
         from core import ai
         self.use_ai = ai.available()
 
-        self._say("recon.io — mode TUI", "bold cyan")
+        self._say("recon.io, mode TUI", "bold cyan")
         if self.use_ai:
-            self._say(f"AI aktif ({ai.provider_name()}) — bicara biasa saja.", "dim")
+            self._say(f"AI aktif ({ai.provider_name()}), bicara biasa saja.", "dim")
         else:
-            self._say("AI belum dikonfigurasi — pakai perintah langsung.", "dim")
+            self._say("AI belum dikonfigurasi, pakai perintah langsung.", "dim")
             self._say("contoh: example.com fokus urls,js   |   recon api.example.com", "dim")
         self._say("ketik 'fase' untuk daftar fase, 'keluar' untuk berhenti.", "dim")
         self._blank()
@@ -223,7 +223,7 @@ class ReconTUI(App):
             return
 
         if self.running:
-            self._say("masih ada recon berjalan — tunggu sampai selesai.", "bold yellow")
+            self._say("masih ada recon berjalan, tunggu sampai selesai.", "bold yellow")
             return
 
         self._handle(text)
@@ -243,7 +243,7 @@ class ReconTUI(App):
             self._set_status("")
 
         if not got:
-            self._say("target tidak terbaca — sebut domainnya, mis. example.com", "bold yellow")
+            self._say("target tidak terbaca, sebut domainnya, mis. example.com", "bold yellow")
             return
 
         if got.get("action") != "run":
@@ -260,7 +260,7 @@ class ReconTUI(App):
         if self.scope is not None:
             in_scope, reason = self.scope.check(target)
             if not in_scope:
-                self._say(f"{target} di luar scope ({reason}) — tidak dijalankan.", "bold red")
+                self._say(f"{target} di luar scope ({reason}), tidak dijalankan.", "bold red")
                 return
 
         fases = [f for f in (got.get("fases") or []) if f in FASE_LIST] or list(FASE_LIST)
@@ -290,7 +290,7 @@ class ReconTUI(App):
             if cmd in _NO:
                 self._say("oke, dibatalkan.", "dim")
             else:
-                self._say("dibatalkan — jawab y atau n.", "dim")
+                self._say("dibatalkan, jawab y atau n.", "dim")
             return
 
         self.target     = plan["target"]
@@ -321,7 +321,7 @@ class ReconTUI(App):
             return
         self.target_dir = target_dir
         self._blank()
-        self._say(f"selesai — hasil di {target_dir}", "bold green")
+        self._say(f"selesai, hasil di {target_dir}", "bold green")
         self.query_one("#prompt", Input).focus()
 
     # ── aksi keybinding ──────────────────────────────────────────

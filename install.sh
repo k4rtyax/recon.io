@@ -1,5 +1,5 @@
 #!/bin/bash
-# install.sh — Setup recon.io (Linux & macOS)
+# install.sh, Setup recon.io (Linux & macOS)
 
 set +e
 
@@ -44,7 +44,7 @@ _detect_os() {
 OS=$(_detect_os)
 
 if [[ "$OS" == "wsl" ]]; then
-    echo "[*] WSL terdeteksi — lanjut sebagai Debian/Ubuntu."
+    echo "[*] WSL terdeteksi, lanjut sebagai Debian/Ubuntu."
     OS="apt"
 fi
 
@@ -213,11 +213,11 @@ fi
 if [ -n "$ZSH_VERSION" ] || [[ "$SHELL" == *"zsh"* ]]; then
     source "$HOME/.zshrc" 2>/dev/null \
         && echo "[+] .zshrc di-source" \
-        || echo "[!] Gagal source .zshrc — jalankan manual: source ~/.zshrc"
+        || echo "[!] Gagal source .zshrc, jalankan manual: source ~/.zshrc"
 else
     source "$HOME/.bashrc" 2>/dev/null \
         && echo "[+] .bashrc di-source" \
-        || echo "[!] Gagal source .bashrc — jalankan manual: source ~/.bashrc"
+        || echo "[!] Gagal source .bashrc, jalankan manual: source ~/.bashrc"
 fi
 
 # ── Helper .env writer ────────────────────────────────────────────────
@@ -233,7 +233,7 @@ _set_env() {
 # ── Ringkasan & AI wizard ─────────────────────────────────────────────
 echo ""
 echo "══════════════════════════════════════════════"
-echo " recon.io — instalasi selesai"
+echo " recon.io, instalasi selesai"
 echo "══════════════════════════════════════════════"
 echo " Penggunaan:"
 echo "   recon -d example.com"
@@ -244,8 +244,8 @@ echo "   recon --setup-ai    (ubah provider AI kapan saja)"
 echo ""
 echo " (Opsional) Setup Asisten AI:"
 echo ""
-echo "   1) Gemini      (gratis — ai.google.dev)"
-echo "   2) Groq        (gratis, cepat — console.groq.com)"
+echo "   1) Gemini      (gratis, ai.google.dev)"
+echo "   2) Groq        (gratis, cepat, console.groq.com)"
 echo "   3) OpenRouter  (openrouter.ai)"
 echo "   4) Ollama      (lokal, tanpa key)"
 echo "   5) Provider lain  (OpenAI / Mistral / Together.ai / dll)"
@@ -299,11 +299,11 @@ case "$ai_choice" in
     5)
         echo ""
         echo "   Provider lain:"
-        echo "     1) OpenAI       (api.openai.com)       — gpt-4o-mini"
-        echo "     2) Mistral      (api.mistral.ai)       — mistral-small-latest"
-        echo "     3) Together.ai  (api.together.xyz)     — Llama-3-70b"
-        echo "     4) Perplexity   (api.perplexity.ai)   — sonar-large"
-        echo "     5) LM Studio    (localhost:1234)       — tanpa key"
+        echo "     1) OpenAI       (api.openai.com)      , gpt-4o-mini"
+        echo "     2) Mistral      (api.mistral.ai)      , mistral-small-latest"
+        echo "     3) Together.ai  (api.together.xyz)    , Llama-3-70b"
+        echo "     4) Perplexity   (api.perplexity.ai)  , sonar-large"
+        echo "     5) LM Studio    (localhost:1234)      , tanpa key"
         echo "     6) Isi manual"
         echo ""
         read -rp "   Pilih [1-6]: " prov_choice
