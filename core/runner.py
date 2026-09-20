@@ -14,7 +14,7 @@ from datetime import datetime
 
 from config import FASE_LIST, DEFAULT_OUTPUT_DIR
 from core.report import Report
-from core.utils import info, ok, warn, err, section, console
+from core.utils import info, ok, warn, err, section, console, sink_active
 from rich.progress import Progress, TextColumn, BarColumn, MofNCompleteColumn, TimeElapsedColumn
 from rich.table import Table
 
@@ -27,6 +27,8 @@ import modules.js          as mod_js
 import modules.params      as mod_params
 import modules.security    as mod_security
 import modules.dirbrute    as mod_dirbrute
+import modules.api         as mod_api
+import modules.buckets     as mod_buckets
 
 
 FASE_MAP = {
@@ -39,18 +41,21 @@ FASE_MAP = {
     "params":      mod_params,
     "security":    mod_security,
     "dirbrute":    mod_dirbrute,
+    "api":         mod_api,
+    "buckets":     mod_buckets,
 }
 
 _HARD_DEPS: dict[str, str] = {
     "js":     "urls",
     "params": "urls",
+    "api":    "urls",
 }
 
 
 def _setup_dirs(target_dir: str, fases: list = None):
     subdirs = list(fases) if fases else [
         "subdomain", "dns", "ports", "fingerprint",
-        "urls", "js", "security", "dirbrute",
+        "urls", "js", "params", "security", "dirbrute", "api", "buckets",
     ]
     for d in subdirs + ["report"]:
         os.makedirs(os.path.join(target_dir, d), exist_ok=True)
@@ -69,6 +74,34 @@ def _get_waves(fases: list[str]) -> list[list[str]]:
     return waves
 
 
+_DONE_DIR = ".done"
+
+
+def _marker(target_dir: str, fase: str) -> str:
+    return os.path.join(target_dir, _DONE_DIR, fase)
+
+
+def _mark_done(target_dir: str, fase: str):
+    os.makedirs(os.path.join(target_dir, _DONE_DIR), exist_ok=True)
+    with open(_marker(target_dir, fase), "w") as f:
+        f.write(datetime.now().isoformat(timespec="seconds") + "\n")
+
+
+def _resolve_target_dir(target: str, output_dir: str, resume: bool) -> str:
+    """Folder run baru, atau run terakhir yang ada bila --resume."""
+    folder_name = target.replace("*.", "").replace("/", "_")
+    base = os.path.join(output_dir, folder_name)
+    if resume and os.path.isdir(base):
+        runs = [
+            d for d in os.listdir(base)
+            if d.startswith("recon_") and os.path.isdir(os.path.join(base, d))
+        ]
+        if runs:
+            latest = max(runs, key=lambda d: os.path.getmtime(os.path.join(base, d)))
+            return os.path.join(base, latest)
+    return os.path.join(base, datetime.now().strftime("recon_%d_%m_%Y"))
+
+
 def _run_fase(
     fase: str,
     target: str,
@@ -77,6 +110,7 @@ def _run_fase(
     mod = FASE_MAP[fase]
     try:
         mod.run(target, target_dir)
+        _mark_done(target_dir, fase)
         ok(f"fase {fase} selesai")
         return True
     except Exception as exc:
@@ -84,29 +118,47 @@ def _run_fase(
         return False
 
 
+_SUMMARY_ROWS = [
+    ("subdomain aktif",     "alive_sub",    False),
+    ("subdomain total",     "total_sub",    False),
+    ("open ports",          "open_ports",   False),
+    ("total URLs",          "total_urls",   False),
+    ("URL terkategorisasi", "categorized",  False),
+    ("JS endpoints",        "js_ep",        False),
+    ("potential secrets",   "secrets",      True),
+    ("hidden params",       "disc_params",  True),
+    ("takeover candidates", "takeover",     True),
+    ("CORS issues",         "cors",         True),
+    ("bucket terbuka",      "open_buckets", True),
+    ("bucket terdeteksi",   "buckets",      False),
+    ("endpoint GraphQL",    "graphql",      False),
+    ("endpoint OpenAPI",    "api_eps",      False),
+    ("missing sec headers", "missing_hdrs", False),
+    ("insecure cookies",    "cookies_bad",  False),
+]
+
+
 def _print_summary(report: Report):
     s = report.get_stats()
+
+    if sink_active():
+        section(f"ringkasan — {report.target}")
+        for label, key, critical in _SUMMARY_ROWS:
+            val = s[key]
+            if critical and val > 0:
+                warn(f"{label:<20}: {val}")
+            else:
+                info(f"{label:<20}: {val}")
+        return
 
     table = Table(title=f"ringkasan — {report.target}", show_header=True, header_style="bold cyan")
     table.add_column("temuan", style="white")
     table.add_column("jumlah", justify="right")
 
-    def _row(label, val, critical=False):
+    for label, key, critical in _SUMMARY_ROWS:
+        val = s[key]
         color = "bold red" if critical and val > 0 else ("bold green" if val > 0 else "dim")
         table.add_row(label, f"[{color}]{val}[/{color}]")
-
-    _row("subdomain aktif",       s["alive_sub"])
-    _row("subdomain total",       s["total_sub"])
-    _row("open ports",            s["open_ports"])
-    _row("total URLs",            s["total_urls"])
-    _row("URL terkategorisasi",   s["categorized"])
-    _row("JS endpoints",          s["js_ep"])
-    _row("potential secrets",     s["secrets"],      critical=True)
-    _row("hidden params",         s["disc_params"],  critical=True)
-    _row("takeover candidates",   s["takeover"],     critical=True)
-    _row("CORS issues",           s["cors"],         critical=True)
-    _row("missing sec headers",   s["missing_hdrs"])
-    _row("insecure cookies",      s["cookies_bad"])
 
     console.print()
     console.print(table)
@@ -116,6 +168,7 @@ def run_target(
     target: str,
     output_dir: str = DEFAULT_OUTPUT_DIR,
     fases: list = None,
+    resume: bool = False,
 ) -> str | None:
     """Jalankan semua fase untuk satu target.
 
@@ -133,19 +186,24 @@ def run_target(
         err(f"Fase yang tersedia: {', '.join(FASE_LIST)}")
         return None
 
-    date_tag    = datetime.now().strftime("recon_%d_%m_%Y")
-    folder_name = target.replace("*.", "").replace("/", "_")
-    target_dir  = os.path.join(output_dir, folder_name, date_tag)
+    target_dir = _resolve_target_dir(target, output_dir, resume)
     _setup_dirs(target_dir, fases)
 
-    report       = Report(target, target_dir)
-    waves        = _get_waves(fases)
-    total        = len(fases)
     done_fases: list[str] = []
+    pending = list(fases)
+    if resume:
+        done_fases = [f for f in fases if os.path.exists(_marker(target_dir, f))]
+        pending    = [f for f in fases if f not in done_fases]
+
+    report       = Report(target, target_dir)
+    waves        = _get_waves(pending)
+    total        = len(fases)
 
     section(f"target: {target}")
     info(f"output : {target_dir}")
     info(f"fase   : {', '.join(fases)}")
+    if done_fases:
+        info(f"resume : {len(done_fases)} fase sudah selesai, dilewati ({', '.join(done_fases)})")
 
     with Progress(
         TextColumn("[bold blue]{task.description}"),
@@ -153,8 +211,11 @@ def run_target(
         MofNCompleteColumn(),
         TimeElapsedColumn(),
         console=console,
+        disable=sink_active(),
     ) as progress:
         task_id = progress.add_task("memulai...", total=total)
+        if done_fases:
+            progress.advance(task_id, len(done_fases))
 
         for wave in waves:
             if len(wave) == 1:

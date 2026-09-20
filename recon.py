@@ -108,11 +108,43 @@ def parse_args():
         ),
     )
     parser.add_argument(
+        "--resume",
+        action="store_true",
+        help=(
+            "lanjutkan run terakhir target: fase yang sudah selesai dilewati.\n"
+            "hasil ditulis ke folder run yang sama, bukan folder baru"
+        ),
+    )
+    parser.add_argument(
+        "--diff",
+        action="store_true",
+        help=(
+            "bandingkan hasil dengan run sebelumnya dan tampilkan yang baru muncul.\n"
+            "baseline diperbarui otomatis setelah dibandingkan"
+        ),
+    )
+    parser.add_argument(
+        "--notify",
+        action="store_true",
+        help=(
+            "kirim ringkasan hasil ke Discord/Slack/Telegram.\n"
+            "atur lewat RECON_NOTIFY_* di .env"
+        ),
+    )
+    parser.add_argument(
         "--menu",
         action="store_true",
         help=(
             "mode menu keyboard: pilih target in-scope dan fase lewat menu.\n"
             "dijalankan tanpa target, butuh --scope dan terminal interaktif"
+        ),
+    )
+    parser.add_argument(
+        "--tui",
+        action="store_true",
+        help=(
+            "mode layar penuh: percakapan dan log recon dalam satu panel.\n"
+            "dijalankan tanpa target, butuh terminal interaktif"
         ),
     )
     parser.add_argument(
@@ -148,10 +180,10 @@ def parse_args():
     args = parser.parse_args()
     if args.recon_subs and not args.domain:
         parser.error("--recon-subs hanya bisa digunakan dengan -d/--domain")
-    if args.menu and args.chat:
-        parser.error("--menu dan --chat tidak bisa digabung")
-    if (args.menu or args.chat) and (args.domain or args.subdomain or args.file):
-        parser.error("--menu dan --chat dijalankan tanpa target (-d/-s/-f)")
+    if sum([args.menu, args.chat, args.tui]) > 1:
+        parser.error("--menu, --chat, dan --tui tidak bisa digabung")
+    if (args.menu or args.chat or args.tui) and (args.domain or args.subdomain or args.file):
+        parser.error("--menu, --chat, dan --tui dijalankan tanpa target (-d/-s/-f)")
     if args.menu and not args.scope:
         parser.error("--menu butuh --scope")
     return args, parser
@@ -167,8 +199,12 @@ contoh penggunaan:
   python recon.py -d example.com --fase subdomain,dns,ports
   python recon.py -d example.com --recon-subs
   python recon.py -d example.com --recon-subs --fase urls,js,security
+  python recon.py -d example.com --fase api,buckets
+  python recon.py -d example.com --resume
+  python recon.py -d example.com --diff --notify
   python recon.py --menu --scope scope.csv
   python recon.py --chat
+  python recon.py --tui
   python recon.py --setup-ai
 
 fase yang tersedia:
@@ -184,6 +220,8 @@ def _check_tools():
         "subfinder":   "go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest",
         "alterx":      "go install github.com/projectdiscovery/alterx/cmd/alterx@latest",
         "dnsx":        "go install github.com/projectdiscovery/dnsx/cmd/dnsx@latest",
+        "tlsx":        "go install github.com/projectdiscovery/tlsx/cmd/tlsx@latest",
+        "github-subdomains": "go install github.com/gwen001/github-subdomains@latest",
         "httpx":       "go install github.com/projectdiscovery/httpx/cmd/httpx@latest",
         "naabu":       "go install github.com/projectdiscovery/naabu/v2/cmd/naabu@latest",
         "katana":      "go install github.com/projectdiscovery/katana/cmd/katana@latest",
@@ -217,6 +255,31 @@ def _check_tools():
 
     console.print(table)
     console.print(f"\n  [bold green]{found} tools siap[/bold green]  |  [bold red]{missing} belum terinstall[/bold red]\n")
+
+    _check_providers()
+
+
+def _check_providers():
+    """Status API OSINT dan kanal notifikasi."""
+    from rich.table import Table
+    from core import apikeys, notify
+
+    table = Table(title="API OSINT (opsional)", header_style="bold cyan")
+    table.add_column("provider", style="bold white", min_width=14)
+    table.add_column("status", min_width=10)
+    table.add_column("keterangan")
+
+    for name, ready, note in apikeys.status():
+        mark = "[bold green]✓ siap[/bold green]" if ready else "[dim]- kosong[/dim]"
+        table.add_row(name, mark, f"[dim]{note}[/dim]")
+
+    console.print(table)
+
+    kanal = notify.channels()
+    if kanal:
+        console.print(f"\n  notifikasi   : [bold green]{', '.join(kanal)}[/bold green]\n")
+    else:
+        console.print("\n  notifikasi   : [dim]belum diatur (RECON_NOTIFY_* di .env)[/dim]\n")
 
 
 def _find_alive_subs(output_dir: str, target: str) -> list[str]:
@@ -644,8 +707,57 @@ def _run_verify(target: str, target_dir: str | None, scope) -> None:
         err(f"verifikasi gagal untuk {target}: {exc}")
 
 
+def _summary_text(target: str, target_dir: str) -> str:
+    from core.report import Report
+    s = Report(target, target_dir).get_stats()
+    return "\n".join([
+        f"subdomain aktif : {s['alive_sub']}",
+        f"open ports      : {s['open_ports']}",
+        f"potential secret: {s['secrets']}",
+        f"takeover        : {s['takeover']}",
+        f"bucket terbuka  : {s['open_buckets']}",
+        f"endpoint GraphQL: {s['graphql']}",
+    ])
+
+
+def _post_run(target: str, target_dir: str | None, output_dir: str,
+              do_diff: bool, do_notify: bool) -> None:
+    """Diff terhadap run sebelumnya dan notifikasi, dijalankan per target."""
+    if not target_dir:
+        return
+
+    body = ""
+    if do_diff:
+        from core import diff
+        first   = diff.is_first_run(target, output_dir)
+        changes = diff.compare(target, target_dir, output_dir)
+        saved   = diff.update_baseline(target, target_dir, output_dir)
+        if first:
+            info(f"baseline dibuat ({saved} file), diff aktif mulai run berikutnya")
+        else:
+            body = diff.render(changes, target)
+            section(f"perubahan sejak run sebelumnya — {target}")
+            console.print(body)
+
+    if do_notify:
+        from core import notify
+        if not notify.enabled():
+            warn("--notify aktif tapi belum ada kanal (atur RECON_NOTIFY_* di .env)")
+            return
+        notify.send(f"recon.io — {target}", body or _summary_text(target, target_dir))
+
+
 def main():
     args, parser = parse_args()
+
+    # ── mode layar penuh (sebelum banner, layar diambil alih TUI) ─
+    if args.tui:
+        if not (sys.stdin.isatty() and sys.stdout.isatty()):
+            err("mode --tui butuh terminal interaktif")
+            sys.exit(1)
+        from core.tui import run_tui
+        run_tui(args.output, _load_scope(args.scope) if args.scope else None)
+        sys.exit(0)
 
     banner()
 
@@ -751,7 +863,8 @@ def main():
         # step 1: enumerasi subdomain di root
         section(f"[1] enumerasi subdomain — {root}")
         try:
-            run_target(target=root, output_dir=args.output, fases=["subdomain"])
+            run_target(target=root, output_dir=args.output, fases=["subdomain"],
+                       resume=args.resume)
         except KeyboardInterrupt:
             console.print()
             warn("dihentikan oleh pengguna (Ctrl+C)")
@@ -784,7 +897,8 @@ def main():
         for i, sub in enumerate(alive_subs, 1):
             section(f"[{i}/{total_subs}] {sub}")
             try:
-                sub_dir = run_target(target=sub, output_dir=args.output, fases=sub_fases)
+                sub_dir = run_target(target=sub, output_dir=args.output, fases=sub_fases,
+                                     resume=args.resume)
             except KeyboardInterrupt:
                 console.print()
                 warn("dihentikan oleh pengguna (Ctrl+C)")
@@ -795,6 +909,8 @@ def main():
 
             if args.verify:
                 _run_verify(sub, sub_dir, scope)
+
+            _post_run(sub, sub_dir, args.output, args.diff, args.notify)
 
         section("semua subdomain selesai")
         info(f"hasil disimpan di: {args.output}")
@@ -817,6 +933,7 @@ def main():
                 target=target,
                 output_dir=args.output,
                 fases=fases,
+                resume=args.resume,
             )
         except KeyboardInterrupt:
             console.print()
@@ -828,6 +945,8 @@ def main():
 
         if args.verify:
             _run_verify(target, target_dir, scope)
+
+        _post_run(target, target_dir, args.output, args.diff, args.notify)
 
     section("semua target selesai")
     info(f"hasil disimpan di: {args.output}")

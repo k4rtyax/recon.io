@@ -50,8 +50,10 @@ recon -d example.com                          # recon lengkap satu domain
 recon -d example.com -A                       # pemetaan jaringan saja (subdomain, dns, port)
 recon -d example.com --fase subdomain,urls    # pilih fase tertentu
 recon -d example.com --recon-subs             # recon tiap subdomain yang aktif
+recon -d example.com --resume                 # lanjutkan scan yang terputus
+recon -d example.com --diff --notify          # tampilkan & kirim yang baru muncul
 recon -f targets.txt                          # banyak target sekaligus
-recon --check                                 # cek tools mana yang sudah terpasang
+recon --check                                 # cek tools dan API mana yang sudah siap
 ```
 
 ---
@@ -68,6 +70,9 @@ recon --check                                 # cek tools mana yang sudah terpas
 | `--fase NAMA` | pilih fase, pisah koma — contoh: `subdomain,urls,js` |
 | `--recon-subs` | enum subdomain dulu, lalu recon tiap subdomain aktif |
 | `--scope FILE` | batasi ke target in-scope saja (file `.txt`/`.csv` HackerOne) |
+| `--resume` | lanjutkan run terakhir, fase yang sudah selesai dilewati |
+| `--diff` | tampilkan yang baru muncul dibanding run sebelumnya |
+| `--notify` | kirim ringkasan ke Discord/Slack/Telegram |
 | `--menu` | pilih target in-scope dan fase lewat menu keyboard (butuh `--scope`) |
 | `--chat` | mode asisten AI interaktif |
 | `--list-fase` | tampilkan semua fase yang tersedia |
@@ -89,28 +94,39 @@ recon --check                                 # cek tools mana yang sudah terpas
 | 7 | params | temukan parameter tersembunyi |
 | 8 | security | cek header keamanan, CORS, nuclei, subdomain takeover |
 | 9 | dirbrute | brute-force direktori & file tersembunyi |
+| 10 | api | cari endpoint GraphQL (cek introspeksi) & dokumen OpenAPI/Swagger |
+| 11 | buckets | cari cloud storage bucket (S3, GCS, Azure, Spaces) yang terbuka |
 
 ---
 
 ## Asisten AI (opsional)
 
-AI bisa bantu navigasi recon lewat obrolan biasa — bilang scope-nya apa, AI rekomendasikan target, lalu jalankan recon dengan persetujuan. Tanpa AI, semua fase tetap jalan normal.
+AI bisa bantu navigasi recon lewat obrolan biasa. Tanpa AI, semua fase tetap jalan normal.
 
 ```bash
 recon --setup-ai   # set atau ganti provider AI kapan saja
 
-recon              # buka mode obrolan dengan AI
+recon --chat       # buka mode obrolan dengan AI
 ```
 
 Contoh percakapan:
 
 ```
-> ini scope-nya: scope.csv
-> rekomen target mana dulu?
-> recon admin.kominfo.go.id fokus urls sama js
+> recon admin.example.com fokus urls sama js
+> ada endpoint menarik nggak dari hasil tadi?
 ```
 
-AI tidak bisa recon target di luar scope. Setiap scan tetap butuh konfirmasi dari kamu.
+Sebut targetnya langsung — AI tidak akan menanyakan scope. Kalau kamu memang punya
+file scope, berikan saja dan AI otomatis memfilter target ke situ. Setiap scan tetap
+butuh konfirmasi manual dari kamu.
+
+### Privasi data
+
+Isi laporan recon dikirim ke provider AI yang dipilih. Sebelum dikirim ke provider
+cloud, secret, token, cookie, dan email otomatis disensor. Provider lokal
+(Ollama / LM Studio) tidak pernah menyensor karena datanya tidak keluar mesin.
+
+Kalau program melarang data keluar ke pihak ketiga, pakai Ollama atau LM Studio.
 
 ### Pilihan provider
 
@@ -148,6 +164,51 @@ cp .env.example .env   # buat file pengaturan dari template
 | `RECON_USER_AGENT` | Chrome UA | user agent untuk HTTP request |
 | `RECON_TOOL_<NAMA>` | nama tool | path ke binary tool tertentu |
 | `RECON_WORDLIST` | auto-detect | path ke wordlist untuk dirbrute |
+| `RECON_BUCKET_MAX` | `400` | maks kandidat nama bucket yang dites |
+| `RECON_NOTIFY_*` | kosong | webhook Discord/Slack/Telegram untuk `--notify` |
+| `RECON_AI_REDACT` | `1` | sensor data sensitif sebelum dikirim ke AI cloud |
+
+---
+
+## API OSINT (opsional, gratis)
+
+Fase subdomain otomatis memakai crt.sh tanpa perlu key. Kalau mau hasil lebih banyak,
+isi key gratis di `.env` — yang kosong dilewati begitu saja.
+
+| Layanan | Free tier |
+| ------- | --------- |
+| [crt.sh](https://crt.sh) | tanpa key |
+| [Shodan InternetDB](https://internetdb.shodan.io) | tanpa key |
+| [Chaos](https://chaos.projectdiscovery.io) | gratis untuk personal use |
+| [Netlas](https://netlas.io) | 50 request/hari |
+| [VirusTotal](https://virustotal.com) | 500 request/hari |
+| [LeakIX](https://leakix.net) | gratis |
+| [Censys](https://censys.io) | kredit bulanan |
+| [SecurityTrails](https://securitytrails.com) | terbatas |
+| [Shodan](https://shodan.io) | key gratis terbatas |
+
+Cek mana yang sudah siap:
+
+```bash
+recon --check
+```
+
+---
+
+## Notifikasi & pemantauan berkala
+
+```bash
+recon -d example.com --diff            # cuma tampilkan yang baru sejak run sebelumnya
+recon -d example.com --diff --notify   # plus kirim ke Discord/Slack/Telegram
+```
+
+Run pertama membuat baseline. Run berikutnya membandingkan subdomain, port, URL,
+endpoint, dan bucket — yang dilaporkan hanya selisihnya. Untuk jalan otomatis,
+panggil dari cron:
+
+```bash
+0 6 * * * cd /path/recon.io && ./recon.py -d example.com --diff --notify
+```
 
 ---
 
@@ -161,6 +222,8 @@ cp .env.example .env   # buat file pengaturan dari template
         │   ├── all_subdomains.txt
         │   ├── alive_subdomains.txt
         │   ├── alive_subdomains_info.txt
+        │   ├── osint_passive.txt            (crt.sh + API OSINT)
+        │   ├── tlsx_san.txt                 (SAN dari sertifikat TLS)
         │   └── catchall_subdomains.txt      (kalau ada HTTP catch-all)
         ├── dns/
         │   ├── whois.txt
@@ -172,7 +235,8 @@ cp .env.example .env   # buat file pengaturan dari template
         ├── fingerprint/
         │   ├── tech_stack.txt
         │   ├── waf.txt
-        │   └── headers.txt
+        │   ├── headers.txt
+        │   └── favicon_hash.txt             (query siap pakai utk Shodan/FOFA)
         ├── urls/
         │   ├── all_urls.txt
         │   ├── ssrf_prone.txt
@@ -190,6 +254,14 @@ cp .env.example .env   # buat file pengaturan dari template
         │   └── cors_results.txt
         ├── dirbrute/
         │   └── found_paths.txt
+        ├── api/
+        │   ├── graphql_endpoints.txt
+        │   ├── graphql_fingerprint.txt
+        │   ├── api_docs.txt
+        │   └── api_endpoints.txt
+        ├── buckets/
+        │   ├── found_buckets.txt
+        │   └── open_buckets.txt
         └── report/
             ├── report_example.com.md
             └── report_example.com.txt
@@ -205,6 +277,8 @@ recon.io menggabungkan tools open-source berikut:
 [Amass](https://github.com/owasp-amass/amass) •
 [AlterX](https://github.com/projectdiscovery/alterx) •
 [Dnsx](https://github.com/projectdiscovery/dnsx) •
+[Tlsx](https://github.com/projectdiscovery/tlsx) •
+[github-subdomains](https://github.com/gwen001/github-subdomains) •
 [Httpx](https://github.com/projectdiscovery/httpx) •
 [Nmap](https://nmap.org) •
 [Naabu](https://github.com/projectdiscovery/naabu) •

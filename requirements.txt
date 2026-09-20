@@ -1,3 +1,5 @@
 rich>=13.0.0
 certifi
 simple-term-menu
+mmh3
+textual

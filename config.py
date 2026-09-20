@@ -65,6 +65,8 @@ TIMEOUTS = {
     "params":      int(os.environ.get("RECON_TIMEOUT_PARAMS", "300")),
     "security":    int(os.environ.get("RECON_TIMEOUT_SECURITY", "360")),
     "dirbrute":    int(os.environ.get("RECON_TIMEOUT_DIRBRUTE", "600")),
+    "api":         int(os.environ.get("RECON_TIMEOUT_API", "180")),
+    "buckets":     int(os.environ.get("RECON_TIMEOUT_BUCKETS", "240")),
 }
 
 # ─── TOOL PATHS ─────────────────────────────────────────────────
@@ -73,6 +75,7 @@ TOOLS = {
     "subfinder":    os.environ.get("RECON_TOOL_SUBFINDER",   "subfinder"),
     "alterx":       os.environ.get("RECON_TOOL_ALTERX",      "alterx"),
     "dnsx":         os.environ.get("RECON_TOOL_DNSX",        "dnsx"),
+    "tlsx":         os.environ.get("RECON_TOOL_TLSX",        "tlsx"),
     "httpx":        os.environ.get("RECON_TOOL_HTTPX",       "httpx"),
     "nmap":         os.environ.get("RECON_TOOL_NMAP",        "nmap"),
     "wafw00f":      os.environ.get("RECON_TOOL_WAFW00F",     "wafw00f"),
@@ -82,6 +85,7 @@ TOOLS = {
     "naabu":        os.environ.get("RECON_TOOL_NAABU",       "naabu"),
     # Tier 1 & 2
     "amass":        os.environ.get("RECON_TOOL_AMASS",       "amass"),
+    "github-subdomains": os.environ.get("RECON_TOOL_GITHUB_SUBDOMAINS", "github-subdomains"),
     "gau":          os.environ.get("RECON_TOOL_GAU",         "gau"),
     "waybackurls":  os.environ.get("RECON_TOOL_WAYBACKURLS", "waybackurls"),
     "arjun":        os.environ.get("RECON_TOOL_ARJUN",       "arjun"),
@@ -103,6 +107,8 @@ FASE_LIST = [
     "params",
     "security",
     "dirbrute",
+    "api",
+    "buckets",
 ]
 
 # ─── URL CATEGORIES ─────────────────────────────────────────────

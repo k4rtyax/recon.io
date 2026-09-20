@@ -24,23 +24,55 @@ def _ts():
     return datetime.now().strftime("%H:%M:%S")
 
 
+# ── sink: alihkan log ke UI lain (mode TUI) ──────────────────────
+# Selama sink aktif, tidak ada yang boleh menulis langsung ke stdout
+# karena akan merusak tampilan layar penuh.
+
+_sink = None
+
+
+def set_sink(fn):
+    """fn(level, msg) menerima semua log. None mengembalikan output ke console."""
+    global _sink
+    _sink = fn
+
+
+def sink_active() -> bool:
+    return _sink is not None
+
+
 def info(msg: str):
+    if _sink:
+        _sink("info", msg)
+        return
     console.print(f"[timestamp][{_ts()}][/timestamp] [info][*][/info] {msg}")
 
 
 def ok(msg: str):
+    if _sink:
+        _sink("ok", msg)
+        return
     console.print(f"[timestamp][{_ts()}][/timestamp] [ok][✓][/ok] {msg}")
 
 
 def warn(msg: str):
+    if _sink:
+        _sink("warn", msg)
+        return
     console.print(f"[timestamp][{_ts()}][/timestamp] [warn][!][/warn] {msg}")
 
 
 def err(msg: str):
+    if _sink:
+        _sink("err", msg)
+        return
     console.print(f"[timestamp][{_ts()}][/timestamp] [err][✗][/err] {msg}")
 
 
 def section(title: str):
+    if _sink:
+        _sink("section", title)
+        return
     console.print()
     console.print(f"[bold cyan]── {title} ──[/bold cyan]")
 

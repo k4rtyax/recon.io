@@ -112,8 +112,8 @@ for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
 done
 
 # ── Python packages ───────────────────────────────────────────────────
-echo "[*] Install library Python (wafw00f, rich, arjun, simple-term-menu)..."
-_pip_pkgs="wafw00f rich arjun simple-term-menu"
+echo "[*] Install library Python (wafw00f, rich, arjun, simple-term-menu, mmh3)..."
+_pip_pkgs="wafw00f rich arjun simple-term-menu mmh3"
 
 if [[ "$OS" == "macos" ]]; then
     pip3 install $_pip_pkgs 2>/dev/null \
@@ -144,6 +144,7 @@ else
     _go_install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
     _go_install github.com/projectdiscovery/alterx/cmd/alterx@latest
     _go_install github.com/projectdiscovery/dnsx/cmd/dnsx@latest
+    _go_install github.com/projectdiscovery/tlsx/cmd/tlsx@latest
     _go_install github.com/projectdiscovery/httpx/cmd/httpx@latest
     _go_install github.com/projectdiscovery/naabu/v2/cmd/naabu@latest
     _go_install github.com/projectdiscovery/katana/cmd/katana@latest
@@ -153,6 +154,7 @@ else
     _go_install github.com/lc/gau/v2/cmd/gau@latest
     _go_install github.com/tomnomnom/waybackurls@latest
     _go_install github.com/PentestPad/subzy@latest
+    _go_install github.com/gwen001/github-subdomains@latest
 fi
 
 # ── Wordlist ──────────────────────────────────────────────────────────

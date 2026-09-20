@@ -66,6 +66,10 @@ class Report:
             "takeover":     _count(f"{d}/security/takeover.txt"),
             "disc_params":  _count(f"{d}/params/discovered_params.txt"),
             "cors":         cors_findings,
+            "graphql":      _count(f"{d}/api/graphql_endpoints.txt"),
+            "api_eps":      _count(f"{d}/api/api_endpoints.txt"),
+            "buckets":      _count(f"{d}/buckets/found_buckets.txt"),
+            "open_buckets": _count(f"{d}/buckets/open_buckets.txt"),
         }
 
     def _build_summary(self) -> tuple[str, str]:
@@ -85,9 +89,15 @@ class Report:
         takeover     = s["takeover"]
         disc_params  = s["disc_params"]
         cors_findings = s["cors"]
+        graphql      = s["graphql"]
+        api_eps      = s["api_eps"]
+        buckets      = s["buckets"]
+        open_buckets = s["open_buckets"]
 
         # tentukan prioritas temuan
         findings = []
+        if open_buckets > 0:
+            findings.append(f"[!] Bucket terbuka (listable)    : {open_buckets}")
         if secrets > 0:
             findings.append(f"[!] Potential secrets ditemukan : {secrets}")
         if takeover > 0:
@@ -96,6 +106,12 @@ class Report:
             findings.append(f"[!] CORS misconfiguration       : {cors_findings}")
         if disc_params > 0:
             findings.append(f"[!] Hidden params ditemukan     : {disc_params}")
+        if graphql > 0:
+            findings.append(f"[i] Endpoint GraphQL            : {graphql}")
+        if buckets > 0:
+            findings.append(f"[i] Bucket terdeteksi           : {buckets}")
+        if api_eps > 0:
+            findings.append(f"[i] Endpoint dari OpenAPI       : {api_eps}")
         if categorized > 0:
             findings.append(f"[i] URL terkategorisasi         : {categorized}")
         if params_urls > 0:
@@ -135,6 +151,10 @@ class Report:
 | CORS issues | {cors_findings} |
 | Missing headers | {missing_hdrs} |
 | Insecure cookies | {cookies_bad} |
+| Endpoint GraphQL | {graphql} |
+| Endpoint OpenAPI | {api_eps} |
+| Bucket terdeteksi | {buckets} |
+| Bucket terbuka | {open_buckets} |
 
 ### Temuan prioritas
 
@@ -171,6 +191,10 @@ RINGKASAN METRIK
   CORS issues         : {cors_findings}
   Missing headers     : {missing_hdrs}
   Insecure cookies    : {cookies_bad}
+  Endpoint GraphQL    : {graphql}
+  Endpoint OpenAPI    : {api_eps}
+  Bucket terdeteksi   : {buckets}
+  Bucket terbuka      : {open_buckets}
 
 TEMUAN PRIORITAS
 {txt_findings}
@@ -281,6 +305,40 @@ TEMUAN PRIORITAS
         found = self._read_head(f"{d}/dirbrute/ffuf_results.txt")
         md = f"```\n{found}\n```\n"
         self.add_section("Fase 8: Directory Bruteforce", md)
+
+    def fase_api(self):
+        d = self.target_dir
+        gql = self._read_head(f"{d}/api/graphql_endpoints.txt", 20)
+        md = f"**Endpoint GraphQL**\n\n```\n{gql}\n```\n"
+
+        fp_file = f"{d}/api/graphql_fingerprint.txt"
+        if os.path.exists(fp_file) and _count(fp_file) > 0:
+            fp = self._read_head(fp_file, 10)
+            md += f"\n**Fingerprint engine GraphQL**\n\n```\n{fp}\n```\n"
+
+        docs_file = f"{d}/api/api_docs.txt"
+        if os.path.exists(docs_file) and _count(docs_file) > 0:
+            docs = self._read_head(docs_file, 10)
+            md += f"\n**Dokumentasi API (OpenAPI/Swagger)**\n\n```\n{docs}\n```\n"
+
+        eps_file = f"{d}/api/api_endpoints.txt"
+        if os.path.exists(eps_file) and _count(eps_file) > 0:
+            eps = self._read_head(eps_file, 40)
+            md += f"\n**Endpoint dari dokumentasi API**\n\n```\n{eps}\n```\n"
+
+        self.add_section("Fase 9: API & GraphQL Recon", md)
+
+    def fase_buckets(self):
+        d = self.target_dir
+        found = self._read_head(f"{d}/buckets/found_buckets.txt", 30)
+        md = f"**Bucket terdeteksi**\n\n```\n{found}\n```\n"
+
+        open_file = f"{d}/buckets/open_buckets.txt"
+        if os.path.exists(open_file) and _count(open_file) > 0:
+            opened = self._read_head(open_file, 20)
+            md += f"\n**Bucket terbuka (bisa di-listing)**\n\n```\n{opened}\n```\n"
+
+        self.add_section("Fase 10: Cloud Storage Buckets", md)
 
     # ── tulis ke disk ─────────────────────────────────────────────
 

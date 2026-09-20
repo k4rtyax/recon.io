@@ -23,6 +23,34 @@ def _amass_major_version() -> int | None:
     return int(m.group(1)) if m else None
 
 
+def _parse_tlsx(json_file: str, target: str) -> list[str]:
+    """Ambil SAN/CN dari output tlsx, sisakan yang masih di bawah target."""
+    if not os.path.exists(json_file):
+        return []
+    suffix = "." + target
+    hosts: set[str] = set()
+    with open(json_file) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                data = json.loads(line)
+            except Exception:
+                continue
+            names = list(data.get("subject_an") or [])
+            cn = data.get("subject_cn")
+            if cn:
+                names.append(cn)
+            for n in names:
+                n = n.strip().lower().rstrip(".")
+                if n.startswith("*."):
+                    n = n[2:]
+                if n == target or n.endswith(suffix):
+                    hosts.add(n)
+    return sorted(hosts)
+
+
 def _wildcard_ips(target: str) -> set[str]:
     """Probe subdomain acak untuk mendeteksi wildcard DNS. Return set IP, kosong jika tidak ada."""
     from core.utils import warn as _warn
@@ -94,6 +122,54 @@ def run(target: str, target_dir: str):
     else:
         warn("amass tidak ditemukan, passive enum tambahan dilewati")
 
+    # ── 1c. OSINT pasif (crt.sh + API provider) ──────────────────
+    osint_out = os.path.join(out, "osint_passive.txt")
+    try:
+        from core import apikeys
+        hosts = apikeys.passive_subdomains(target)
+        if hosts:
+            write_lines(osint_out, hosts)
+    except Exception as exc:
+        warn(f"OSINT pasif dilewati: {exc}")
+
+    # ── 1d. github-subdomains (source-code mining) ───────────────
+    gh_out   = os.path.join(out, "github_subdomains.txt")
+    gh_token = os.environ.get("GITHUB_TOKEN", "")
+    if not tool_available(TOOLS["github-subdomains"]):
+        warn("github-subdomains tidak ditemukan, source-code mining dilewati")
+    elif not gh_token:
+        warn("GITHUB_TOKEN belum diset, github-subdomains dilewati")
+    else:
+        exec_cmd(
+            [TOOLS["github-subdomains"], "-d", target, "-t", gh_token, "-o", gh_out],
+            timeout=min(t, 180),
+        )
+        info("github-subdomains selesai")
+
+    # ── 1e. tlsx (SAN dari sertifikat TLS) ───────────────────────
+    passive_file = os.path.join(out, "passive_all.txt")
+    passive = []
+    for src in [sf_out, amass_out, osint_out, gh_out]:
+        if os.path.exists(src):
+            passive += read_lines(src)
+    passive = sorted(set(passive))
+    write_lines(passive_file, passive)
+
+    tlsx_out = os.path.join(out, "tlsx_san.txt")
+    if not tool_available(TOOLS["tlsx"]):
+        warn("tlsx tidak ditemukan, SAN scraping dilewati")
+    elif passive:
+        tlsx_json = os.path.join(out, "tlsx.json")
+        exec_cmd(
+            [TOOLS["tlsx"], "-l", passive_file, "-san", "-cn",
+             "-silent", "-json", "-o", tlsx_json],
+            timeout=min(t, 180),
+        )
+        san_hosts = _parse_tlsx(tlsx_json, target)
+        if san_hosts:
+            write_lines(tlsx_out, san_hosts)
+        info(f"tlsx selesai, SAN in-scope: {len(san_hosts)}")
+
     # ── 2. alterx & dnsx (Permutasi & Resolusi DNS) ──────────────
     alterx_available = tool_available(TOOLS["alterx"])
     dnsx_available   = tool_available(TOOLS["dnsx"])
@@ -122,7 +198,7 @@ def run(target: str, target_dir: str):
 
     # ── 3. Penggabungan & Deduplikasi ──────────────────────────────
     subdomains = []
-    for src in [sf_out, amass_out, resolved_file]:
+    for src in [sf_out, amass_out, osint_out, gh_out, tlsx_out, resolved_file]:
         if os.path.exists(src):
             subdomains += read_lines(src)
     subdomains = sorted(set(subdomains))

@@ -21,9 +21,15 @@ Override via env:
   RECON_AI_TIMEOUT    (default: 120 detik)
   RECON_AI_MAX_CHARS  (default: 100000 — batas konteks report yang dikirim)
   RECON_AI_MAX_TOKENS (default: 4096)
+
+Privasi (hanya berlaku untuk provider cloud, endpoint lokal dilewati):
+  RECON_AI_REDACT        (default: 1 — sensor secret/header/email/JWT sebelum kirim)
+  RECON_AI_ZDR           (default: 1 — minta provider tidak menyimpan data, bila didukung)
+  RECON_AI_QUIET_PRIVACY (default: 0 — 1 untuk membungkam peringatan privasi)
 """
 
 import os
+import re
 import ssl
 import json
 import urllib.request
@@ -32,7 +38,7 @@ from datetime import datetime
 
 from rich.markup import escape
 from core.utils import info, warn, err, section, console
-from config import FASE_LIST, DEFAULT_USER_AGENT
+from config import FASE_LIST, DEFAULT_USER_AGENT, SECRET_PATTERNS
 from core.scope import Scope
 
 _PROVIDER   = os.environ.get("RECON_AI_PROVIDER", "gemini").strip().lower()
@@ -63,7 +69,66 @@ def _ssl_context() -> ssl.SSLContext:
 
 
 def _is_local_endpoint() -> bool:
-    return "localhost" in _BASE_URL or "127.0.0.1" in _BASE_URL
+    return any(h in _BASE_URL for h in ("localhost", "127.0.0.1", "0.0.0.0", "::1"))
+
+
+# ── privasi: redaksi, ZDR, peringatan ────────────────────────────────
+# Hanya berlaku untuk provider cloud; inference lokal dilewati sepenuhnya.
+
+_REDACT     = os.environ.get("RECON_AI_REDACT", "1").strip() != "0"
+_ZDR        = os.environ.get("RECON_AI_ZDR", "1").strip() != "0"
+_QUIET_PRIV = os.environ.get("RECON_AI_QUIET_PRIVACY", "0").strip() == "1"
+
+_privacy_warned = False
+
+_REDACT_RULES = [
+    (re.compile(r"(?im)^([ \t]*authorization[ \t]*:[ \t]*).*$"), r"\1[REDACTED:authorization]"),
+    (re.compile(r"(?im)^([ \t]*(?:set-)?cookie[ \t]*:[ \t]*).*$"), r"\1[REDACTED:cookie]"),
+    (re.compile(r"(?i)\b(?:bearer|basic)\s+[A-Za-z0-9._~+/=-]{8,}"), "[REDACTED:authorization]"),
+    (re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"), "[REDACTED:jwt]"),
+] + [
+    (re.compile(p, re.IGNORECASE), "[REDACTED:secret]") for p in SECRET_PATTERNS
+] + [
+    (re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"), "[REDACTED:email]"),
+]
+
+
+def redact(text: str) -> str:
+    """Sensor data sensitif sebelum meninggalkan mesin. No-op untuk endpoint lokal."""
+    if not text or not _REDACT or _is_local_endpoint():
+        return text
+    for pat, repl in _REDACT_RULES:
+        text = pat.sub(repl, text)
+    return text
+
+
+def _privacy_notice():
+    global _privacy_warned
+    if _privacy_warned or _QUIET_PRIV or _is_local_endpoint():
+        return
+    _privacy_warned = True
+    warn(f"isi recon dikirim ke AI cloud: {_BASE_URL or 'Google AI Studio'}")
+    if _PROVIDER == "gemini":
+        warn("Gemini tier gratis: data bisa dipakai Google untuk pengembangan produk & direview manusia")
+    if "openrouter.ai" in _BASE_URL:
+        warn("OpenRouter: mengaktifkan logging memberi hak pakai komersial atas data — biarkan logging mati")
+    info("jangan pakai bila program melarang data keluar — alternatif lokal: Ollama / LM Studio (--setup-ai)")
+    if not _REDACT:
+        warn("RECON_AI_REDACT=0 — data dikirim tanpa sensor")
+
+
+def _ungrounded_hosts(answer: str, source: str, target: str) -> list[str]:
+    """Host milik target yang disebut AI tapi tidak ada di data sumber."""
+    root = _clean_target(target).lower()
+    if not root or not answer:
+        return []
+    src = source.lower()
+    found = set()
+    for m in re.finditer(r"\b(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}\b", answer.lower()):
+        host = m.group(0)
+        if (host == root or host.endswith("." + root)) and host not in src:
+            found.add(host)
+    return sorted(found)
 
 
 def provider_name() -> str:
@@ -146,6 +211,9 @@ def _call_gemini(system: str, user: str, silent: bool = False) -> str | None:
         warn("API_KEY tidak di-set — fitur AI dilewati (set di .env)")
         return None
 
+    _privacy_notice()
+    user = redact(user)
+
     url  = f"{_API_BASE}/{_MODEL}:generateContent?key={key}"
     body = {
         "system_instruction": {"parts": [{"text": system}]},
@@ -194,6 +262,9 @@ def _call_openai(system: str, user: str, silent: bool = False) -> str | None:
         warn("RECON_AI_MODEL belum diset (mis. llama-3.3-70b-versatile)")
         return None
 
+    _privacy_notice()
+    user = redact(user)
+
     # User-Agent normal: endpoint seperti Groq di belakang Cloudflare memblok
     # UA default urllib (Python-urllib/*) dengan error 1010.
     headers = {"Content-Type": "application/json", "User-Agent": DEFAULT_USER_AGENT}
@@ -210,6 +281,10 @@ def _call_openai(system: str, user: str, silent: bool = False) -> str | None:
         "temperature": 0.4,
         "max_tokens": _MAX_TOKENS,
     }
+    # OpenRouter: satu-satunya flag retensi yang resmi terdokumentasi di sini.
+    if _ZDR and "openrouter.ai" in _BASE_URL:
+        body["provider"] = {"data_collection": "deny"}
+
     req = urllib.request.Request(
         f"{_BASE_URL}/chat/completions",
         data=json.dumps(body).encode(),
@@ -310,7 +385,15 @@ def interpret_nuclei(target: str, results_text: str) -> str | None:
     """Minta AI menafsirkan output nuclei hasil verifikasi. None bila tak tersedia."""
     if not available() or not results_text.strip():
         return None
-    return _call_llm(_SYS_VERIFY, f"Target: {target}\n\n=== OUTPUT NUCLEI ===\n{results_text}", silent=True)
+    answer = _call_llm(_SYS_VERIFY, f"Target: {target}\n\n=== OUTPUT NUCLEI ===\n{results_text}", silent=True)
+    if not answer:
+        return None
+    ghosts = _ungrounded_hosts(answer, results_text, target)
+    if ghosts:
+        warn(f"tafsir AI menyebut host di luar output nuclei: {', '.join(ghosts)}")
+        answer += ("\n\n[!] host berikut disebut AI tapi tidak ada di output nuclei — "
+                   f"abaikan sebagai klaim: {', '.join(ghosts)}\n")
+    return answer
 
 
 def attack_suggestions(target: str, target_dir: str):
@@ -323,6 +406,12 @@ def attack_suggestions(target: str, target_dir: str):
     answer = _call_llm(_SYS_ATTACK, f"Target: {target}\n\n=== LAPORAN RECON ===\n{report}")
     if not answer:
         return
+
+    ghosts = _ungrounded_hosts(answer, report, target)
+    if ghosts:
+        warn(f"saran AI menyebut host yang tidak ada di laporan: {', '.join(ghosts)}")
+        answer += ("\n\n[!] host berikut disebut AI tapi tidak ada di laporan recon — "
+                   f"jangan ditindak tanpa verifikasi: {', '.join(ghosts)}\n")
 
     out = os.path.join(target_dir, "report", "ai_attack_suggestions.md")
     with open(out, "w") as f:
@@ -370,22 +459,18 @@ _SYS_CHAT = (
     "'*.example.com, !blog.example.com'). Taruh link di 'program'. Di 'message' rangkum "
     "scope-nya dan tanya target mana yang mau di-recon.\n"
     "- action=run  : user ingin MENJALANKAN recon pada sebuah target. Ekstrak domain & fase. "
-    "Kamu TIDAK menjalankan apa pun — hanya mengusulkan. ATURAN: recon hanya boleh untuk "
-    "target yang ada di dalam scope. Jika scope BELUM diset, JANGAN action=run — pakai "
-    "action=chat untuk meminta scope dulu.\n"
+    "Kamu TIDAK menjalankan apa pun — hanya mengusulkan; user yang mengonfirmasi.\n"
     "- action=answer: user bertanya tentang hasil recon. Jawab di 'message' dari KONTEKS LAPORAN.\n"
-    "- action=chat  : sapaan / klarifikasi / minta scope / rekomendasi target. Isi 'message'.\n"
-    "SCOPE SUDAH DISET — ATURAN KRITIS: jika konteks menunjukkan [scope aktif: ...] dan user "
-    "menyebut domain atau menjawab 'ya'/'oke'/'lanjut' setelah rekomendasi, LANGSUNG "
-    "action=run dengan target yang dimaksud. JANGAN panggil action=set_scope lagi kecuali "
-    "user eksplisit minta 'ganti scope' atau 'ubah scope'.\n"
-    "PENTING: link program OPSIONAL (cuma untuk catatan). JANGAN PERNAH menuntut/blokir "
-    "user karena link program belum ada — scope saja sudah cukup untuk lanjut.\n"
-    "Jika user minta REKOMENDASI, sebutkan beberapa host in-scope yang paling menarik "
-    "(mis. dev tools seperti bugzilla/phabricator, API, admin, auth) dengan alasan singkat, "
-    "lalu tanya mau mulai yang mana. Jangan minta link program.\n"
+    "- action=chat  : sapaan / klarifikasi / rekomendasi target. Isi 'message'.\n"
+    "ATURAN KRITIS: scope OPSIONAL. JANGAN PERNAH meminta scope, link program, atau izin "
+    "tambahan sebelum menjalankan. Begitu user menyebut sebuah domain, atau menjawab "
+    "'ya'/'oke'/'lanjut' setelah rekomendasi, LANGSUNG action=run. Pakai set_scope HANYA "
+    "bila user sendiri yang memberi file atau pola scope.\n"
+    "Jika konteks memuat [scope aktif: ...], pakai itu untuk menyusun rekomendasi, dan "
+    "sebutkan beberapa host paling menarik (mis. dev tools seperti bugzilla/phabricator, "
+    "API, admin, auth) dengan alasan singkat lalu tanya mau mulai yang mana.\n"
     f"Fase valid: {', '.join(FASE_LIST)}. fases=null berarti semua fase.\n"
-    "STRATEGI SCOPE: jika scope berisi wildcard (*.domain), boleh enumerate root lalu "
+    "STRATEGI SCOPE (hanya bila scope aktif): jika scope berisi wildcard (*.domain), boleh enumerate root lalu "
     "filter ke scope. Jika scope hanya daftar host SPESIFIK (tanpa wildcard), JANGAN "
     "sarankan fase 'subdomain' — recon tiap host langsung (fase web: urls, js, ports, "
     "fingerprint, security). Mengetes subdomain di luar daftar = di luar scope.\n"
@@ -415,21 +500,33 @@ def _parse_intent(raw: str) -> dict | None:
         return None
 
 
+def intent(user: str, history: list[str] | None = None, ctx: str = "") -> dict | None:
+    """Satu putaran percakapan tanpa I/O console — dipakai mode TUI.
+    Return dict intent (action/target/fases/message) atau None bila gagal."""
+    hist = "\n".join((history or [])[-6:])
+    raw = _call_llm(_SYS_CHAT, f"{hist}\nUSER: {user}{ctx}", silent=True)
+    if not raw:
+        return None
+    return _parse_intent(raw) or {"action": "chat", "message": raw}
+
+
 def _execute_run(target, fases, scope, output_dir):
-    """Validasi scope -> konfirmasi -> jalankan recon.
+    """Konfirmasi -> jalankan recon. Scope opsional: kalau ada, dipakai sebagai filter.
     Return (target, target_dir) bila jalan; None bila out-of-scope / dibatalkan."""
     target = _clean_target(target or "")
     if not target:
         console.print("[bold green][AI][/bold green] Target mana yang mau di-recon?")
         return None
 
-    in_scope, reason = scope.check(target)
-    if not in_scope:
-        console.print(f"[bold red][AI][/bold red] {escape(target)} DI LUAR scope ({escape(reason)}). Tidak dijalankan.")
-        return None
+    reason = ""
+    if scope is not None:
+        in_scope, reason = scope.check(target)
+        if not in_scope:
+            console.print(f"[bold red][AI][/bold red] {escape(target)} DI LUAR scope ({escape(reason)}). Tidak dijalankan.")
+            return None
 
     fases = [f for f in (fases or []) if f in FASE_LIST] or list(FASE_LIST)
-    if "subdomain" in fases and not scope.is_wildcard_match(target):
+    if scope is not None and "subdomain" in fases and not scope.is_wildcard_match(target):
         fases = [f for f in fases if f != "subdomain"]
         info(f"{target}: host spesifik (scope non-wildcard) — fase subdomain dilewati")
 
@@ -438,7 +535,8 @@ def _execute_run(target, fases, scope, output_dir):
         f"\n[bold]rencana:[/bold] target=[cyan]{target}[/cyan]  "
         f"fase=[cyan]{', '.join(fases)}[/cyan]  output=[cyan]{output_dir}[/cyan]"
     )
-    console.print(f"[green][scope] in-scope ({escape(reason)})[/green]")
+    if scope is not None:
+        console.print(f"[green][scope] in-scope ({escape(reason)})[/green]")
     from core import menu as kbmenu
     if not kbmenu.confirm("Jalankan recon sekarang?", default=False):
         console.print("[bold green][AI][/bold green] Oke, dibatalkan.")
@@ -501,14 +599,14 @@ def menu_session(output_dir: str, scope):
 
 
 def chat_session(output_dir: str):
-    """Mode percakapan scope-first: AI mengusulkan, user menyetujui sebelum recon."""
+    """Mode percakapan: AI mengusulkan, user menyetujui sebelum recon."""
     if not available():
         warn(f"provider AI '{_PROVIDER}' belum dikonfigurasi — jalankan: python recon.py --setup-ai")
         return
 
     section("recon.io — asisten AI")
-    console.print("[bold]Mau recon apa hari ini?[/bold] Sebutkan dulu scope-nya.")
-    console.print("[dim]   scope: pola domain (mis. *.example.com kecuali blog) atau path file .csv/.txt[/dim]")
+    console.print("[bold]Mau recon apa?[/bold] Sebut targetnya, mis. 'recon example.com fokus urls sama js'.")
+    console.print("[dim]   opsional: beri file/pola scope kalau mau target difilter otomatis[/dim]")
     console.print("[dim]   ketik 'menu' untuk pilih target via keyboard  |  'keluar' untuk berhenti[/dim]\n")
 
     history: list[str] = []
@@ -534,14 +632,15 @@ def chat_session(output_dir: str):
         # ── picker keyboard (tanpa AI) ───────────────────────────
         if cmd in {"menu", "pilih", "pilih target", "m"}:
             if scope is None:
-                console.print("[bold green][AI][/bold green] Set scope dulu sebelum pakai menu.")
+                console.print("[bold green][AI][/bold green] Menu memilih dari daftar scope. "
+                              "Beri file scope dulu, atau sebut targetnya langsung.")
                 continue
             res = _menu_select(scope, output_dir)
             if res:
                 cur_target, cur_dir = res
             continue
 
-        ctx = f"\n\n[scope aktif: {scope.summary() if scope else 'BELUM diset'}]"
+        ctx = f"\n\n[scope aktif: {scope.summary()}]" if scope else ""
         if cur_dir:
             rep = _load_report(cur_dir)
             if rep:
@@ -587,12 +686,8 @@ def chat_session(output_dir: str):
             if msg:
                 console.print(f"[bold green][AI][/bold green] {escape(msg)}")
 
-        # ── run (wajib in-scope) ─────────────────────────────────
+        # ── run (scope dipakai sebagai filter bila ada) ──────────
         elif action == "run":
-            if scope is None:
-                console.print("[bold green][AI][/bold green] Set scope dulu ya sebelum recon.")
-                history += [f"USER: {user}", "AI: minta scope"]
-                continue
             new_target = _clean_target(intent.get("target") or "")
             if new_target and new_target != cur_target:
                 cur_dir = None  # clear report lama saat ganti target
