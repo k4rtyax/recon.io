@@ -1,6 +1,9 @@
+import os
 import sys
 import shutil
+import signal
 import subprocess
+import threading
 from datetime import datetime
 from rich.console import Console
 from rich.theme import Theme
@@ -111,16 +114,7 @@ def run(cmd: list, timeout: int = 60, silent: bool = True, input_data: str | Non
     Return: (returncode, stdout, stderr)
     """
     try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            input=input_data,
-        )
-        return result.returncode, result.stdout, result.stderr
-    except subprocess.TimeoutExpired:
-        return -1, "", "timeout"
+        return _exec(cmd, timeout, input_data=input_data)
     except FileNotFoundError:
         return -1, "", f"tool not found: {cmd[0]}"
     except Exception as e:
@@ -130,18 +124,93 @@ def run(cmd: list, timeout: int = 60, silent: bool = True, input_data: str | Non
 def run_shell(cmd: str, timeout: int = 60) -> tuple[int, str, str]:
     """Jalankan string perintah via shell."""
     try:
-        result = subprocess.run(
-            cmd,
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-        )
-        return result.returncode, result.stdout, result.stderr
-    except subprocess.TimeoutExpired:
-        return -1, "", "timeout"
+        return _exec(cmd, timeout, shell=True)
     except Exception as e:
         return -1, "", str(e)
+
+
+# ── pembatalan: hentikan semua proses tool yang sedang jalan ─────
+# Dipakai TUI (ctrl+x). Runner berhenti memulai fase baru, modul HTTP
+# berhenti di request berikutnya, dan run() menolak menjalankan tool baru.
+
+_procs: set = set()
+_procs_lock = threading.Lock()
+_cancel = threading.Event()
+
+
+def cancelled() -> bool:
+    return _cancel.is_set()
+
+
+def reset_cancel():
+    _cancel.clear()
+
+
+def cancel_all():
+    _cancel.set()
+    with _procs_lock:
+        procs = list(_procs)
+    for proc in procs:
+        _kill_tree(proc)
+
+
+def _kill_tree(proc: subprocess.Popen):
+    """Matikan proses beserta anaknya (penting untuk shell=True)."""
+    if proc.poll() is not None:
+        return
+    try:
+        if os.name == "nt":
+            subprocess.run(
+                ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                capture_output=True, timeout=10,
+            )
+        else:
+            os.killpg(proc.pid, signal.SIGKILL)
+    except (OSError, subprocess.SubprocessError):
+        pass
+    try:
+        proc.kill()
+    except OSError:
+        pass
+
+
+def _exec(cmd, timeout: int, shell: bool = False, input_data: str | None = None) -> tuple[int, str, str]:
+    if _cancel.is_set():
+        return -1, "", "dibatalkan"
+
+    proc = subprocess.Popen(
+        cmd,
+        shell=shell,
+        stdin=subprocess.PIPE if input_data is not None else None,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        # grup proses sendiri supaya _kill_tree bisa mematikan anak-anaknya
+        start_new_session=(os.name != "nt"),
+    )
+    with _procs_lock:
+        _procs.add(proc)
+    try:
+        # cancel_all bisa jalan di antara cek awal dan pendaftaran proses
+        if _cancel.is_set():
+            _kill_tree(proc)
+        try:
+            out, errout = proc.communicate(input=input_data, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            _kill_tree(proc)
+            proc.communicate()
+            return -1, "", "timeout"
+    except BaseException:
+        # mis. KeyboardInterrupt di mode CLI: jangan tinggalkan proses yatim
+        _kill_tree(proc)
+        raise
+    finally:
+        with _procs_lock:
+            _procs.discard(proc)
+
+    if _cancel.is_set():
+        return -1, out or "", "dibatalkan"
+    return proc.returncode, out, errout
 
 
 def write_lines(path: str, lines: list[str]):

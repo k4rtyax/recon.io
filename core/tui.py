@@ -43,8 +43,11 @@ _FASE_MARK = {
     "done":   ("✔", "bold green"),
     "fail":   ("✗", "bold red"),
     "skip":   ("↷", "dim"),
+    "stop":   ("■", "bold yellow"),
 }
-_FASE_END = {"done", "fail", "skip"}
+_FASE_END = {"done", "fail", "skip", "stop"}
+
+_STOP_WINDOW = 3.0   # detik antara dua tekanan ctrl+x
 
 
 def _clock(secs: float) -> str:
@@ -125,8 +128,9 @@ class ReconTUI(App):
     """
 
     BINDINGS = [
-        Binding("ctrl+c", "quit",  "keluar"),
-        Binding("escape", "batal", "batal"),
+        Binding("ctrl+c", "keluar", "keluar", priority=True),
+        Binding("ctrl+x", "stop",   "stop scan", priority=True),
+        Binding("escape", "batal",  "batal"),
         Binding("ctrl+l", "bersih", "bersihkan"),
     ]
 
@@ -138,6 +142,9 @@ class ReconTUI(App):
         self.target_dir: str | None = None
         self.pending: dict | None   = None
         self.running    = False
+        self.stopping   = False
+        self.quit_after = False
+        self.stop_armed: datetime | None = None
         self.fase_done  = 0
         self.fase_total = 0
         # fase -> [status, waktu mulai, waktu selesai]
@@ -295,7 +302,7 @@ class ReconTUI(App):
         cmd = text.strip("'\"`. ").lower()
 
         if cmd in _QUIT:
-            self.exit()
+            self.action_keluar()
             return
         if cmd in {"fase", "fases", "list-fase"}:
             self._say("fase tersedia: " + ", ".join(FASE_LIST), "cyan")
@@ -309,7 +316,7 @@ class ReconTUI(App):
             return
 
         if self.running:
-            self._say("masih ada recon berjalan, tunggu sampai selesai.", "bold yellow")
+            self._say("masih ada recon berjalan, tunggu selesai atau ctrl+x dua kali untuk stop.", "bold yellow")
             return
 
         self._handle(text)
@@ -383,6 +390,8 @@ class ReconTUI(App):
         self._reset_fases(plan["fases"])
         self.started    = datetime.now()
         self.running    = True
+        self.stopping   = False
+        self.refresh_bindings()
         self._set_status("recon berjalan...", "bold green")
         self._run_recon(plan["target"], plan["fases"])
 
@@ -401,7 +410,14 @@ class ReconTUI(App):
         self.call_from_thread(self._finish, target_dir, "")
 
     def _finish(self, target_dir: str | None, error: str):
-        self.running = False
+        stopped = self.stopping
+        self.running    = False
+        self.stopping   = False
+        self.stop_armed = None
+        self.refresh_bindings()
+        if self.quit_after:
+            self.exit()
+            return
         self._set_status("")
         self._refresh_topbar()
         if error:
@@ -409,10 +425,52 @@ class ReconTUI(App):
             return
         self.target_dir = target_dir
         self._blank()
-        self._say(f"selesai, hasil di {target_dir}", "bold green")
+        if stopped:
+            self._say(f"recon dihentikan, hasil sebagian di {target_dir}", "bold yellow")
+        else:
+            self._say(f"selesai, hasil di {target_dir}", "bold green")
         self.query_one("#prompt", Input).focus()
 
     # ── aksi keybinding ──────────────────────────────────────────
+
+    def check_action(self, action: str, parameters) -> bool | None:
+        # ctrl+x hanya tampil di footer selama recon berjalan
+        if action == "stop":
+            return self.running
+        return True
+
+    def action_stop(self):
+        if not self.running or self.stopping:
+            return
+        now = datetime.now()
+        if self.stop_armed and (now - self.stop_armed).total_seconds() <= _STOP_WINDOW:
+            self._stop_scan()
+            return
+        self.stop_armed = now
+        self._set_status("tekan ctrl+x lagi untuk menghentikan recon", "bold yellow")
+        self.set_timer(_STOP_WINDOW, self._disarm_stop)
+
+    def _disarm_stop(self):
+        if self.stop_armed and not self.stopping and self.running:
+            self.stop_armed = None
+            self._set_status("recon berjalan...", "bold green")
+
+    def _stop_scan(self):
+        self.stopping   = True
+        self.stop_armed = None
+        self._set_status("menghentikan recon...", "bold yellow")
+        self._say("menghentikan recon, menunggu proses tool berhenti...", "bold yellow")
+        utils.cancel_all()
+
+    def action_keluar(self):
+        """Keluar; kalau recon masih jalan, hentikan dulu supaya tidak ada proses yatim."""
+        if not self.running or self.quit_after:
+            # ctrl+c kedua saat menunggu proses berhenti: paksa keluar
+            self.exit()
+            return
+        self.quit_after = True
+        if not self.stopping:
+            self._stop_scan()
 
     def action_batal(self):
         if self.pending:

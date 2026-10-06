@@ -12,7 +12,7 @@ import urllib.request
 import urllib.error
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from core.utils import info, warn, read_lines, write_lines, get_working_url
+from core.utils import info, warn, read_lines, write_lines, get_working_url, cancelled
 from config import DEFAULT_USER_AGENT, TIMEOUTS
 
 
@@ -77,7 +77,7 @@ def _fetch(url: str, payload: dict | None = None, timeout: int = 8) -> tuple[int
 
 
 def _is_graphql(url: str, deadline: float) -> bool:
-    if time.monotonic() > deadline:
+    if time.monotonic() > deadline or cancelled():
         return False
     _, body = _fetch(url, payload={"query": "{__typename}"})
     if not body:
@@ -149,7 +149,7 @@ def _fingerprint(url: str) -> str:
 
 
 def _openapi_doc(url: str, deadline: float) -> tuple[str, list[str]]:
-    if time.monotonic() > deadline:
+    if time.monotonic() > deadline or cancelled():
         return "", []
     code, body = _fetch(url)
     if code != 200 or not body:

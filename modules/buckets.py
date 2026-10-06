@@ -12,7 +12,7 @@ import urllib.request
 import urllib.error
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from core.utils import info, warn, write_lines
+from core.utils import info, warn, write_lines, cancelled
 from config import DEFAULT_USER_AGENT, TIMEOUTS
 
 
@@ -125,7 +125,7 @@ def _classify(provider: str, code: int, body: str) -> str | None:
 def _check(bucket: str, deadline: float, timeout: int) -> list[str]:
     hits = []
     for provider, url in _targets_for(bucket):
-        if time.monotonic() > deadline:
+        if time.monotonic() > deadline or cancelled():
             break
         code, body = _fetch(url, timeout)
         status = _classify(provider, code, body)

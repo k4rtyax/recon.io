@@ -14,7 +14,7 @@ from datetime import datetime
 
 from config import FASE_LIST, DEFAULT_OUTPUT_DIR
 from core.report import Report
-from core.utils import info, ok, warn, err, section, console, sink_active
+from core.utils import info, ok, warn, err, section, console, sink_active, cancelled, reset_cancel
 from rich.progress import Progress, TextColumn, BarColumn, MofNCompleteColumn, TimeElapsedColumn
 from rich.table import Table
 
@@ -119,9 +119,18 @@ def _run_fase(
     on_fase=None,
 ) -> bool:
     mod = FASE_MAP[fase]
+    if cancelled():
+        _notify(on_fase, fase, "skip")
+        return False
     _notify(on_fase, fase, "start")
     try:
         mod.run(target, target_dir)
+        if cancelled():
+            # tool-nya dimatikan di tengah jalan, hasilnya tidak lengkap:
+            # jangan tandai selesai supaya --resume mengulang fase ini
+            warn(f"fase {fase} dihentikan")
+            _notify(on_fase, fase, "stop")
+            return False
         _mark_done(target_dir, fase)
         ok(f"fase {fase} selesai")
         _notify(on_fase, fase, "done")
@@ -188,8 +197,11 @@ def run_target(
     """Jalankan semua fase untuk satu target.
 
     `on_fase(fase, status)` opsional, dipanggil dengan status "start", "done",
-    "fail" atau "skip" (fase yang sudah selesai saat --resume). Bisa dipanggil
+    "fail", "stop" (dihentikan di tengah jalan) atau "skip" (sudah selesai saat
+    --resume, atau tidak dijalankan karena recon dihentikan). Bisa dipanggil
     dari thread worker.
+
+    Recon bisa dihentikan dari thread lain lewat core.utils.cancel_all().
 
     Return folder output target (dipakai caller untuk fase lanjutan seperti
     verifikasi, jangan hitung ulang dari datetime.now(), karena recon panjang
@@ -205,6 +217,7 @@ def run_target(
         err(f"Fase yang tersedia: {', '.join(FASE_LIST)}")
         return None
 
+    reset_cancel()
     target_dir = _resolve_target_dir(target, output_dir, resume)
     _setup_dirs(target_dir, fases)
 
@@ -239,6 +252,10 @@ def run_target(
             progress.advance(task_id, len(done_fases))
 
         for wave in waves:
+            if cancelled():
+                for fase in wave:
+                    _notify(on_fase, fase, "skip")
+                continue
             if len(wave) == 1:
                 fase = wave[0]
                 progress.update(task_id, description=f"fase: {fase}")
@@ -263,6 +280,9 @@ def run_target(
     for fase in FASE_LIST:
         if fase in done_fases:
             _add_to_report(report, fase)
+
+    if cancelled():
+        warn("recon dihentikan, report dibuat dari fase yang sudah selesai")
 
     done_c  = len(done_fases)
     md_path, txt_path = report.save()
