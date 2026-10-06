@@ -13,7 +13,8 @@ from rich.text import Text
 from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.widgets import Footer, Input, RichLog, Static
+from textual.containers import Horizontal, Vertical
+from textual.widgets import Footer, Input, ProgressBar, RichLog, Static
 
 from config import FASE_LIST, DEFAULT_OUTPUT_DIR
 from core import utils
@@ -33,6 +34,22 @@ _MARK = {
     "err":     ("✗", "bold red"),
     "section": ("─", "bold cyan"),
 }
+
+# status fase dari runner.on_fase, plus "idle" (tidak dipilih) dan "queued" (antre)
+_FASE_MARK = {
+    "idle":   ("·", "dim"),
+    "queued": ("·", ""),
+    "start":  ("▶", "bold cyan"),
+    "done":   ("✔", "bold green"),
+    "fail":   ("✗", "bold red"),
+    "skip":   ("↷", "dim"),
+}
+_FASE_END = {"done", "fail", "skip"}
+
+
+def _clock(secs: float) -> str:
+    secs = int(secs)
+    return f"{secs // 60:02d}:{secs % 60:02d}"
 
 
 def _clean_target(raw: str) -> str:
@@ -68,6 +85,19 @@ class ReconTUI(App):
         color: $text-muted;
         padding: 0 1;
     }
+
+    #main { height: 1fr; }
+
+    #side {
+        width: 26;
+        background: $panel;
+        padding: 0 1;
+    }
+
+    #side-title { color: $text-muted; text-style: bold; }
+    #total { margin-bottom: 1; }
+    #total Bar { width: 1fr; }
+    .fase { height: 1; }
 
     #log {
         background: $surface;
@@ -110,6 +140,8 @@ class ReconTUI(App):
         self.running    = False
         self.fase_done  = 0
         self.fase_total = 0
+        # fase -> [status, waktu mulai, waktu selesai]
+        self.fase_state: dict[str, list] = {f: ["idle", None, None] for f in FASE_LIST}
         self.started: datetime | None = None
         self.history: list[str] = []
         self.use_ai = False
@@ -118,7 +150,13 @@ class ReconTUI(App):
 
     def compose(self) -> ComposeResult:
         yield Static("recon.io", id="topbar")
-        yield RichLog(id="log", wrap=True, auto_scroll=True)
+        with Horizontal(id="main"):
+            with Vertical(id="side"):
+                yield Static("FASE", id="side-title")
+                yield ProgressBar(total=len(FASE_LIST), show_eta=False, id="total")
+                for f in FASE_LIST:
+                    yield Static(id=f"fase-{f}", classes="fase")
+            yield RichLog(id="log", wrap=True, auto_scroll=True)
         yield Static("", id="status")
         yield Input(placeholder="sebut target, mis. example.com fokus urls,js", id="prompt")
         yield Footer()
@@ -126,6 +164,9 @@ class ReconTUI(App):
     def on_mount(self):
         utils.set_sink(self._sink)
         self.set_interval(1.0, self._refresh_topbar)
+        self.set_interval(1.0, self._refresh_running)
+        for f in FASE_LIST:
+            self._render_fase(f)
 
         from core import ai
         self.use_ai = ai.available()
@@ -145,12 +186,20 @@ class ReconTUI(App):
 
     # ── tulis ke panel ───────────────────────────────────────────
 
+    def _ui(self, fn, *args):
+        """Jalankan fn di thread UI, aman dipanggil dari thread worker."""
+        if threading.current_thread() is threading.main_thread():
+            fn(*args)
+        else:
+            self.call_from_thread(fn, *args)
+
     def _sink(self, level: str, msg: str):
         """Dipanggil modul fase, sering dari thread worker."""
-        if threading.current_thread() is threading.main_thread():
-            self._write(level, msg)
-        else:
-            self.call_from_thread(self._write, level, msg)
+        self._ui(self._write, level, msg)
+
+    def _on_fase(self, fase: str, status: str):
+        """Callback runner.on_fase, dipanggil dari thread worker."""
+        self._ui(self._set_fase, fase, status)
 
     def _write(self, level: str, msg: str):
         log = self.query_one("#log", RichLog)
@@ -158,9 +207,6 @@ class ReconTUI(App):
         if level == "section":
             log.write(Text(f"\n── {msg} ──", style="bold cyan"))
             return
-
-        if level == "ok" and msg.startswith("fase ") and msg.endswith("selesai"):
-            self.fase_done += 1
 
         mark, style = _MARK.get(level, ("*", "cyan"))
         line = Text()
@@ -186,6 +232,47 @@ class ReconTUI(App):
     def _set_status(self, msg: str, style: str = "dim"):
         self.query_one("#status", Static).update(Text(msg, style=style))
 
+    # ── panel fase ───────────────────────────────────────────────
+
+    def _reset_fases(self, picked: list[str]):
+        for f in FASE_LIST:
+            self.fase_state[f] = ["queued" if f in picked else "idle", None, None]
+            self._render_fase(f)
+        self.fase_done  = 0
+        self.fase_total = len(picked)
+        self.query_one("#total", ProgressBar).update(total=len(picked), progress=0)
+
+    def _set_fase(self, fase: str, status: str):
+        state = self.fase_state.get(fase)
+        if state is None:
+            return
+        now = datetime.now()
+        if status == "start":
+            state[:] = ["start", now, None]
+        else:
+            state[0] = status
+            state[2] = now
+            if status in _FASE_END:
+                self.fase_done += 1
+                self.query_one("#total", ProgressBar).update(progress=self.fase_done)
+        self._render_fase(fase)
+        self._refresh_topbar()
+
+    def _render_fase(self, fase: str):
+        status, t0, t1 = self.fase_state[fase]
+        mark, style = _FASE_MARK[status]
+        line = Text()
+        line.append(f"{mark} ", style=style)
+        line.append(f"{fase:<12}", style="dim" if status in {"idle", "skip"} else "")
+        if t0:
+            line.append(_clock(((t1 or datetime.now()) - t0).total_seconds()), style="dim")
+        self.query_one(f"#fase-{fase}", Static).update(line)
+
+    def _refresh_running(self):
+        for f, (status, _, _) in self.fase_state.items():
+            if status == "start":
+                self._render_fase(f)
+
     def _refresh_topbar(self):
         bits = ["recon.io"]
         if self.target:
@@ -193,8 +280,7 @@ class ReconTUI(App):
         if self.fase_total:
             bits.append(f"{self.fase_done}/{self.fase_total} fase")
         if self.started and self.running:
-            secs = int((datetime.now() - self.started).total_seconds())
-            bits.append(f"{secs // 60:02d}:{secs % 60:02d}")
+            bits.append(_clock((datetime.now() - self.started).total_seconds()))
         self.query_one("#topbar", Static).update(Text("  ·  ".join(bits), style="dim"))
 
     # ── input ────────────────────────────────────────────────────
@@ -294,8 +380,7 @@ class ReconTUI(App):
             return
 
         self.target     = plan["target"]
-        self.fase_total = len(plan["fases"])
-        self.fase_done  = 0
+        self._reset_fases(plan["fases"])
         self.started    = datetime.now()
         self.running    = True
         self._set_status("recon berjalan...", "bold green")
@@ -307,7 +392,9 @@ class ReconTUI(App):
     def _run_recon(self, target: str, fases: list[str]):
         from core.runner import run_target
         try:
-            target_dir = run_target(target=target, output_dir=self.output_dir, fases=fases)
+            target_dir = run_target(
+                target=target, output_dir=self.output_dir, fases=fases, on_fase=self._on_fase,
+            )
         except Exception as exc:
             self.call_from_thread(self._finish, None, str(exc))
             return
@@ -316,6 +403,7 @@ class ReconTUI(App):
     def _finish(self, target_dir: str | None, error: str):
         self.running = False
         self._set_status("")
+        self._refresh_topbar()
         if error:
             self._say(f"recon gagal: {error}", "bold red")
             return

@@ -102,19 +102,33 @@ def _resolve_target_dir(target: str, output_dir: str, resume: bool) -> str:
     return os.path.join(base, datetime.now().strftime("recon_%d_%m_%Y"))
 
 
+def _notify(on_fase, fase: str, status: str):
+    """Teruskan status fase ke UI. Error di callback tidak boleh menggagalkan fase."""
+    if on_fase is None:
+        return
+    try:
+        on_fase(fase, status)
+    except Exception:
+        pass
+
+
 def _run_fase(
     fase: str,
     target: str,
     target_dir: str,
+    on_fase=None,
 ) -> bool:
     mod = FASE_MAP[fase]
+    _notify(on_fase, fase, "start")
     try:
         mod.run(target, target_dir)
         _mark_done(target_dir, fase)
         ok(f"fase {fase} selesai")
+        _notify(on_fase, fase, "done")
         return True
     except Exception as exc:
         warn(f"fase {fase} gagal: {exc}")
+        _notify(on_fase, fase, "fail")
         return False
 
 
@@ -169,8 +183,13 @@ def run_target(
     output_dir: str = DEFAULT_OUTPUT_DIR,
     fases: list = None,
     resume: bool = False,
+    on_fase=None,
 ) -> str | None:
     """Jalankan semua fase untuk satu target.
+
+    `on_fase(fase, status)` opsional, dipanggil dengan status "start", "done",
+    "fail" atau "skip" (fase yang sudah selesai saat --resume). Bisa dipanggil
+    dari thread worker.
 
     Return folder output target (dipakai caller untuk fase lanjutan seperti
     verifikasi, jangan hitung ulang dari datetime.now(), karena recon panjang
@@ -204,6 +223,8 @@ def run_target(
     info(f"fase   : {', '.join(fases)}")
     if done_fases:
         info(f"resume : {len(done_fases)} fase sudah selesai, dilewati ({', '.join(done_fases)})")
+    for fase in done_fases:
+        _notify(on_fase, fase, "skip")
 
     with Progress(
         TextColumn("[bold blue]{task.description}"),
@@ -221,7 +242,7 @@ def run_target(
             if len(wave) == 1:
                 fase = wave[0]
                 progress.update(task_id, description=f"fase: {fase}")
-                if _run_fase(fase, target, target_dir):
+                if _run_fase(fase, target, target_dir, on_fase):
                     done_fases.append(fase)
                 progress.advance(task_id)
             else:
@@ -229,7 +250,7 @@ def run_target(
                 progress.update(task_id, description=f"paralel ({len(wave)} fase)")
                 with ThreadPoolExecutor(max_workers=len(wave)) as executor:
                     future_to_fase = {
-                        executor.submit(_run_fase, f, target, target_dir): f
+                        executor.submit(_run_fase, f, target, target_dir, on_fase): f
                         for f in wave
                     }
                     for future in as_completed(future_to_fase):
