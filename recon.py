@@ -144,7 +144,8 @@ def parse_args():
         action="store_true",
         help=(
             "mode layar penuh: percakapan dan log recon dalam satu panel.\n"
-            "dijalankan tanpa target, butuh terminal interaktif"
+            "dijalankan tanpa target, butuh terminal interaktif.\n"
+            "otomatis aktif kalau recon.py dijalankan tanpa argumen"
         ),
     )
     parser.add_argument(
@@ -192,6 +193,7 @@ def parse_args():
 def _help_epilog() -> str:
     return f"""
 contoh penggunaan:
+  python recon.py                      (tanpa argumen: mode TUI)
   python recon.py -d opera.com
   python recon.py -s api.opera.com
   python recon.py -f targets.txt -o ~/hasil
@@ -749,13 +751,23 @@ def _post_run(target: str, target_dir: str | None, output_dir: str,
 
 def main():
     args, parser = parse_args()
+    interactive = sys.stdin.isatty() and sys.stdout.isatty()
+
+    # ── tanpa argumen di terminal interaktif: langsung TUI ───────
+    if len(sys.argv) == 1 and interactive:
+        args.tui = True
 
     # ── mode layar penuh (sebelum banner, layar diambil alih TUI) ─
     if args.tui:
-        if not (sys.stdin.isatty() and sys.stdout.isatty()):
+        if not interactive:
             err("mode --tui butuh terminal interaktif")
             sys.exit(1)
-        from core.tui import run_tui
+        try:
+            from core.tui import run_tui
+        except ImportError as e:
+            err(f"mode TUI tidak bisa dimuat: {e}")
+            info("pasang dependensi: pip install -r requirements.txt")
+            sys.exit(1)
         run_tui(args.output, _load_scope(args.scope) if args.scope else None)
         sys.exit(0)
 

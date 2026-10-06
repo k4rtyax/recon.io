@@ -8,6 +8,16 @@ from rich.panel import Panel
 from rich.text import Text
 from config import TOOLS
 
+# Windows: stdout yang dialihkan (pipe/file) memakai codepage lokal (cp1252),
+# banner dan simbol unicode bisa memicu UnicodeEncodeError. Paksa UTF-8.
+for _stream in (sys.stdout, sys.stderr):
+    if _stream and hasattr(_stream, "reconfigure") and \
+            (_stream.encoding or "").lower().replace("-", "") != "utf8":
+        try:
+            _stream.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
+
 # Inisialisasi rich console
 console = Console(
     theme=Theme({
