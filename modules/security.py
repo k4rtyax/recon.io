@@ -3,7 +3,7 @@ Fase 7: Security Headers, Takeover, CORS & Vulnerability Scanning
 """
 
 import os
-from core.utils import info, warn, run as exec_cmd, write_lines, tool_available, get_working_url
+from core.utils import info, warn, finding, sink_active, run as exec_cmd, write_lines, read_lines, tool_available, get_working_url
 from config import REQUIRED_SECURITY_HEADERS, DEFAULT_USER_AGENT, TIMEOUTS, TOOLS
 
 
@@ -125,6 +125,12 @@ def run(target: str, target_dir: str):
     else:
         warn("takeover check dilewati, subzy tidak ada atau alive_subdomains.txt belum ada")
 
+    takeovers = read_lines(takeover_out)
+    for line in takeovers[:20]:
+        finding("takeover", "HIGH", line, quiet_cli=True)
+    if len(takeovers) > 20 and sink_active():
+        info(f"+{len(takeovers) - 20} kandidat takeover lainnya di {takeover_out}")
+
     # ── CORS misconfiguration ─────────────────────────────────────
     cors_out = os.path.join(out, "cors_results.txt")
     _check_cors(url, cors_out, t)
@@ -137,7 +143,7 @@ def _check_cors(url: str, out_file: str, timeout: int):
         "https://attacker.com",
         "null",
     ]
-    findings = []
+    findings = []   # (severity, baris)
 
     for origin in test_origins:
         code, stdout, _ = exec_cmd(
@@ -169,15 +175,16 @@ def _check_cors(url: str, out_file: str, timeout: int):
         # Karena origin uji termasuk "null", refleksi null juga tertangkap di sini.
         if acao == origin:
             severity = "CRITICAL" if acac.lower() == "true" else "MEDIUM"
-            findings.append(
-                f"[{severity}] Origin reflection: {origin} → ACAO: {acao} | ACAC: {acac or 'not set'}"
-            )
+            findings.append((
+                severity,
+                f"[{severity}] Origin reflection: {origin} → ACAO: {acao} | ACAC: {acac or 'not set'}",
+            ))
 
     if findings:
-        write_lines(out_file, findings)
+        write_lines(out_file, [line for _, line in findings])
         info(f"CORS issues ditemukan: {len(findings)}")
-        for finding in findings:
-            warn(finding)
+        for severity, line in findings:
+            finding("cors", severity, line.split("] ", 1)[1], cli=line)
     else:
         write_lines(out_file, ["no cors issues found"])
         info("CORS: tidak ada misconfiguration terdeteksi")

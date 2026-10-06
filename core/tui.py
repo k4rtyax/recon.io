@@ -14,7 +14,7 @@ from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
-from textual.widgets import Footer, Input, ProgressBar, RichLog, Static
+from textual.widgets import DataTable, Footer, Input, ProgressBar, RichLog, Static
 
 from config import FASE_LIST, DEFAULT_OUTPUT_DIR
 from core import utils
@@ -46,6 +46,13 @@ _FASE_MARK = {
     "stop":   ("■", "bold yellow"),
 }
 _FASE_END = {"done", "fail", "skip", "stop"}
+
+_SEV_STYLE = {
+    "CRITICAL": "bold white on red",
+    "HIGH":     "bold red",
+    "MEDIUM":   "bold yellow",
+    "LOW":      "cyan",
+}
 
 _STOP_WINDOW = 3.0   # detik antara dua tekanan ctrl+x
 
@@ -102,6 +109,21 @@ class ReconTUI(App):
     #total Bar { width: 1fr; }
     .fase { height: 1; }
 
+    #right { width: 1fr; }
+
+    #findings-title {
+        height: 1;
+        background: $panel;
+        color: $text-muted;
+        text-style: bold;
+        padding: 0 1;
+    }
+
+    #findings { height: 8; background: $surface; }
+
+    #findings-title, #findings { display: none; }
+    #right.has-findings #findings-title, #right.has-findings #findings { display: block; }
+
     #log {
         background: $surface;
         padding: 0 1;
@@ -131,6 +153,7 @@ class ReconTUI(App):
         Binding("ctrl+c", "keluar", "keluar", priority=True),
         Binding("ctrl+x", "stop",   "stop scan", priority=True),
         Binding("escape", "batal",  "batal"),
+        Binding("ctrl+t", "temuan", "temuan", priority=True),
         Binding("ctrl+l", "bersih", "bersihkan"),
     ]
 
@@ -151,6 +174,7 @@ class ReconTUI(App):
         self.fase_state: dict[str, list] = {f: ["idle", None, None] for f in FASE_LIST}
         self.started: datetime | None = None
         self.history: list[str] = []
+        self.findings: list[dict] = []
         self.use_ai = False
 
     # ── layout ───────────────────────────────────────────────────
@@ -163,7 +187,10 @@ class ReconTUI(App):
                 yield ProgressBar(total=len(FASE_LIST), show_eta=False, id="total")
                 for f in FASE_LIST:
                     yield Static(id=f"fase-{f}", classes="fase")
-            yield RichLog(id="log", wrap=True, auto_scroll=True)
+            with Vertical(id="right"):
+                yield RichLog(id="log", wrap=True, auto_scroll=True)
+                yield Static(id="findings-title")
+                yield DataTable(id="findings", cursor_type="row", zebra_stripes=True)
         yield Static("", id="status")
         yield Input(placeholder="sebut target, mis. example.com fokus urls,js", id="prompt")
         yield Footer()
@@ -174,6 +201,7 @@ class ReconTUI(App):
         self.set_interval(1.0, self._refresh_running)
         for f in FASE_LIST:
             self._render_fase(f)
+        self.query_one("#findings", DataTable).add_columns("severity", "jenis", "detail")
 
         from core import ai
         self.use_ai = ai.available()
@@ -200,8 +228,11 @@ class ReconTUI(App):
         else:
             self.call_from_thread(fn, *args)
 
-    def _sink(self, level: str, msg: str):
+    def _sink(self, level: str, msg: str, data: dict | None = None):
         """Dipanggil modul fase, sering dari thread worker."""
+        if level == "finding" and data:
+            self._ui(self._add_finding, data)
+            return
         self._ui(self._write, level, msg)
 
     def _on_fase(self, fase: str, status: str):
@@ -238,6 +269,41 @@ class ReconTUI(App):
 
     def _set_status(self, msg: str, style: str = "dim"):
         self.query_one("#status", Static).update(Text(msg, style=style))
+
+    # ── panel temuan ─────────────────────────────────────────────
+
+    def _add_finding(self, f: dict):
+        sev, kind, detail = f["severity"], f["kind"], f["detail"]
+        style = _SEV_STYLE.get(sev, "")
+        table = self.query_one("#findings", DataTable)
+        table.add_row(Text(sev, style=style), Text(kind, style="bold"), Text(detail))
+        table.move_cursor(row=table.row_count - 1)
+        self.findings.append(f)
+        self.query_one("#right").add_class("has-findings")
+        self._refresh_findings_title()
+
+        # tetap satu baris di log supaya urutan kejadian terbaca
+        line = Text()
+        line.append(f"{datetime.now():%H:%M:%S} ", style="dim")
+        line.append("◆ ", style=style or "bold yellow")
+        line.append(f"[{sev}] {kind}: ", style=style or "bold yellow")
+        line.append(detail)
+        self.query_one("#log", RichLog).write(line)
+
+    def _refresh_findings_title(self):
+        counts: dict[str, int] = {}
+        for f in self.findings:
+            counts[f["kind"]] = counts.get(f["kind"], 0) + 1
+        title = Text(f"TEMUAN ({len(self.findings)})")
+        if counts:
+            title.append("  " + " · ".join(f"{k} {n}" for k, n in counts.items()), style="dim")
+        title.append("   ctrl+t fokus", style="dim")
+        self.query_one("#findings-title", Static).update(title)
+
+    def _reset_findings(self):
+        self.findings = []
+        self.query_one("#findings", DataTable).clear()
+        self.query_one("#right").remove_class("has-findings")
 
     # ── panel fase ───────────────────────────────────────────────
 
@@ -388,6 +454,7 @@ class ReconTUI(App):
 
         self.target     = plan["target"]
         self._reset_fases(plan["fases"])
+        self._reset_findings()
         self.started    = datetime.now()
         self.running    = True
         self.stopping   = False
@@ -472,7 +539,17 @@ class ReconTUI(App):
         if not self.stopping:
             self._stop_scan()
 
+    def action_temuan(self):
+        """Pindah fokus antara tabel temuan dan prompt."""
+        table = self.query_one("#findings", DataTable)
+        if table.has_focus or not self.findings:
+            self.query_one("#prompt", Input).focus()
+        else:
+            table.focus()
+
     def action_batal(self):
+        if not self.query_one("#prompt", Input).has_focus:
+            self.query_one("#prompt", Input).focus()
         if self.pending:
             self.pending = None
             self._set_status("")

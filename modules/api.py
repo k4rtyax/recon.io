@@ -12,7 +12,7 @@ import urllib.request
 import urllib.error
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from core.utils import info, warn, read_lines, write_lines, get_working_url, cancelled
+from core.utils import info, warn, finding, read_lines, write_lines, get_working_url, cancelled
 from config import DEFAULT_USER_AGENT, TIMEOUTS
 
 
@@ -239,8 +239,9 @@ def run(target: str, target_dir: str):
 
     info(f"endpoint GraphQL: {len(endpoints)}")
     for line in gql_lines:
-        if "aktif" in line:
-            warn(f"introspeksi GraphQL terbuka: {line}")
+        # cocokkan penuh: "aktif" juga substring dari "nonaktif"
+        if "[introspeksi: aktif]" in line:
+            finding("graphql", "MEDIUM", line, cli=f"introspeksi GraphQL terbuka: {line}")
 
     # ── OpenAPI / Swagger ─────────────────────────────────────────
     docs, routes = [], []

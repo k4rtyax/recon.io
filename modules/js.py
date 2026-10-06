@@ -7,7 +7,7 @@ import os
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import urlparse
-from core.utils import info, warn, run as exec_cmd, read_lines, write_lines, tool_available, get_working_url
+from core.utils import info, warn, finding, sink_active, run as exec_cmd, read_lines, write_lines, tool_available, get_working_url
 from config import SECRET_PATTERNS, SECRET_PLACEHOLDER_MARKERS, DEFAULT_USER_AGENT, TIMEOUTS, TOOLS
 
 import os as _os
@@ -112,4 +112,9 @@ def run(target: str, target_dir: str):
 
     info(f"endpoints: {len(set(endpoints_all))}")
     info(f"potential secrets: {len(set(secrets_all))}")
+    secrets = sorted(set(secrets_all))
+    for sec in secrets[:20]:
+        finding("secret", "MEDIUM", sec, quiet_cli=True)
+    if len(secrets) > 20 and sink_active():
+        info(f"+{len(secrets) - 20} potential secrets lainnya di js_secrets.txt")
     info(f"emails: {len(set(emails_all))}")

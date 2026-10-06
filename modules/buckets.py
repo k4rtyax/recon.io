@@ -12,7 +12,7 @@ import urllib.request
 import urllib.error
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from core.utils import info, warn, write_lines, cancelled
+from core.utils import info, warn, finding, write_lines, cancelled
 from config import DEFAULT_USER_AGENT, TIMEOUTS
 
 
@@ -174,4 +174,4 @@ def run(target: str, target_dir: str):
     if open_buckets:
         warn(f"bucket terbuka (listable): {len(open_buckets)}")
         for b in open_buckets[:10]:
-            warn(b)
+            finding("bucket", "HIGH", b)

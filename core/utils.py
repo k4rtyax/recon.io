@@ -6,6 +6,7 @@ import subprocess
 import threading
 from datetime import datetime
 from rich.console import Console
+from rich.markup import escape
 from rich.theme import Theme
 from rich.panel import Panel
 from rich.text import Text
@@ -45,7 +46,10 @@ _sink = None
 
 
 def set_sink(fn):
-    """fn(level, msg) menerima semua log. None mengembalikan output ke console."""
+    """fn(level, msg, data=None) menerima semua log. None mengembalikan output ke console.
+
+    Level "finding" membawa data {"kind", "severity", "detail"}.
+    """
     global _sink
     _sink = fn
 
@@ -58,28 +62,41 @@ def info(msg: str):
     if _sink:
         _sink("info", msg)
         return
-    console.print(f"[timestamp][{_ts()}][/timestamp] [info][*][/info] {msg}")
+    console.print(f"[timestamp][{_ts()}][/timestamp] [info][*][/info] {escape(msg)}")
 
 
 def ok(msg: str):
     if _sink:
         _sink("ok", msg)
         return
-    console.print(f"[timestamp][{_ts()}][/timestamp] [ok][✓][/ok] {msg}")
+    console.print(f"[timestamp][{_ts()}][/timestamp] [ok][✓][/ok] {escape(msg)}")
 
 
 def warn(msg: str):
     if _sink:
         _sink("warn", msg)
         return
-    console.print(f"[timestamp][{_ts()}][/timestamp] [warn][!][/warn] {msg}")
+    console.print(f"[timestamp][{_ts()}][/timestamp] [warn][!][/warn] {escape(msg)}")
 
 
 def err(msg: str):
     if _sink:
         _sink("err", msg)
         return
-    console.print(f"[timestamp][{_ts()}][/timestamp] [err][✗][/err] {msg}")
+    console.print(f"[timestamp][{_ts()}][/timestamp] [err][✗][/err] {escape(msg)}")
+
+
+def finding(kind: str, severity: str, detail: str, cli: str | None = None, quiet_cli: bool = False):
+    """Laporkan temuan (secret, takeover, bucket terbuka, dll).
+
+    Di TUI masuk ke panel temuan. Di CLI dicetak sebagai warn(cli or detail),
+    kecuali quiet_cli, supaya output CLI yang lama tidak berubah.
+    """
+    if _sink:
+        _sink("finding", detail, {"kind": kind, "severity": severity.upper(), "detail": detail})
+        return
+    if not quiet_cli:
+        warn(cli or detail)
 
 
 def section(title: str):
@@ -87,7 +104,7 @@ def section(title: str):
         _sink("section", title)
         return
     console.print()
-    console.print(f"[bold cyan]── {title} ──[/bold cyan]")
+    console.print(f"[bold cyan]── {escape(title)} ──[/bold cyan]")
 
 
 def banner(version="2.0"):
