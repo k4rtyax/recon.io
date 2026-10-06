@@ -157,8 +157,10 @@ class ReconTUI(App):
         Binding("ctrl+l", "bersih", "bersihkan"),
     ]
 
-    def __init__(self, output_dir: str = DEFAULT_OUTPUT_DIR, scope=None):
+    def __init__(self, output_dir: str = DEFAULT_OUTPUT_DIR, scope=None, autorun: dict | None = None):
         super().__init__()
+        # autorun {"target", "fases", "resume"}: langsung recon tanpa konfirmasi (-d target --tui)
+        self.autorun    = autorun
         self.output_dir = output_dir
         self.scope      = scope
         self.target: str | None     = None
@@ -215,6 +217,11 @@ class ReconTUI(App):
         self._say("ketik 'fase' untuk daftar fase, 'keluar' untuk berhenti.", "dim")
         self._blank()
         self.query_one("#prompt", Input).focus()
+
+        if self.autorun:
+            run = self.autorun
+            self._say(f"recon: {run['target']}  ·  {', '.join(run['fases'])}", "bold")
+            self._start(run["target"], run["fases"], run.get("resume", False))
 
     def on_unmount(self):
         utils.set_sink(None)
@@ -452,24 +459,28 @@ class ReconTUI(App):
                 self._say("dibatalkan, jawab y atau n.", "dim")
             return
 
-        self.target     = plan["target"]
-        self._reset_fases(plan["fases"])
+        self._start(plan["target"], plan["fases"])
+
+    # ── eksekusi recon ───────────────────────────────────────────
+
+    def _start(self, target: str, fases: list[str], resume: bool = False):
+        self.target     = target
+        self._reset_fases(fases)
         self._reset_findings()
         self.started    = datetime.now()
         self.running    = True
         self.stopping   = False
         self.refresh_bindings()
         self._set_status("recon berjalan...", "bold green")
-        self._run_recon(plan["target"], plan["fases"])
-
-    # ── eksekusi recon ───────────────────────────────────────────
+        self._run_recon(target, fases, resume)
 
     @work(thread=True, exclusive=True)
-    def _run_recon(self, target: str, fases: list[str]):
+    def _run_recon(self, target: str, fases: list[str], resume: bool = False):
         from core.runner import run_target
         try:
             target_dir = run_target(
-                target=target, output_dir=self.output_dir, fases=fases, on_fase=self._on_fase,
+                target=target, output_dir=self.output_dir, fases=fases,
+                resume=resume, on_fase=self._on_fase,
             )
         except Exception as exc:
             self.call_from_thread(self._finish, None, str(exc))
@@ -559,5 +570,5 @@ class ReconTUI(App):
         self.query_one("#log", RichLog).clear()
 
 
-def run_tui(output_dir: str = DEFAULT_OUTPUT_DIR, scope=None):
-    ReconTUI(output_dir=output_dir, scope=scope).run()
+def run_tui(output_dir: str = DEFAULT_OUTPUT_DIR, scope=None, autorun: dict | None = None):
+    ReconTUI(output_dir=output_dir, scope=scope, autorun=autorun).run()

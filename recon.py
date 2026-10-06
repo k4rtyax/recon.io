@@ -144,8 +144,9 @@ def parse_args():
         action="store_true",
         help=(
             "mode layar penuh: percakapan dan log recon dalam satu panel.\n"
-            "dijalankan tanpa target, butuh terminal interaktif.\n"
-            "otomatis aktif kalau recon.py dijalankan tanpa argumen"
+            "otomatis aktif kalau recon.py dijalankan tanpa argumen.\n"
+            "dengan -d/-s: langsung recon target itu dalam tampilan dashboard\n"
+            "(bisa digabung --fase, -A, --resume, --scope)"
         ),
     )
     parser.add_argument(
@@ -183,8 +184,17 @@ def parse_args():
         parser.error("--recon-subs hanya bisa digunakan dengan -d/--domain")
     if sum([args.menu, args.chat, args.tui]) > 1:
         parser.error("--menu, --chat, dan --tui tidak bisa digabung")
-    if (args.menu or args.chat or args.tui) and (args.domain or args.subdomain or args.file):
-        parser.error("--menu, --chat, dan --tui dijalankan tanpa target (-d/-s/-f)")
+    if (args.menu or args.chat) and (args.domain or args.subdomain or args.file):
+        parser.error("--menu dan --chat dijalankan tanpa target (-d/-s/-f)")
+    if args.tui:
+        if args.file:
+            parser.error("--tui hanya menerima satu target (-d/-s), bukan -f")
+        unsupported = [flag for flag, on in (
+            ("--recon-subs", args.recon_subs), ("--verify", args.verify),
+            ("--diff", args.diff), ("--notify", args.notify),
+        ) if on]
+        if unsupported:
+            parser.error(f"{', '.join(unsupported)} belum didukung di --tui")
     if args.menu and not args.scope:
         parser.error("--menu butuh --scope")
     return args, parser
@@ -207,6 +217,7 @@ contoh penggunaan:
   python recon.py --menu --scope scope.csv
   python recon.py --chat
   python recon.py --tui
+  python recon.py -d example.com --tui --fase subdomain,dns
   python recon.py --setup-ai
 
 fase yang tersedia:
@@ -672,6 +683,32 @@ def _setup_ai_wizard():
     info("jalankan ulang recon untuk menerapkan perubahan")
 
 
+def _pick_fases(args) -> list[str]:
+    """Daftar fase dari --fase / -A / default. Keluar bila ada fase tidak dikenal."""
+    if args.fase:
+        fases = [f.strip() for f in args.fase.split(",") if f.strip()]
+        invalid = [f for f in fases if f not in FASE_LIST]
+        if invalid:
+            err(f"fase tidak dikenal: {', '.join(invalid)}")
+            err(f"gunakan --list-fase untuk melihat daftar fase")
+            sys.exit(1)
+        return fases
+    if args.A:
+        return ["subdomain", "dns", "ports"]
+    return list(FASE_LIST)
+
+
+def _pick_target_fases(args) -> tuple[str, list[str]]:
+    """Target tunggal dari -d/-s beserta fasenya; -s melewati fase subdomain."""
+    fases = _pick_fases(args)
+    if args.domain:
+        return _clean_target(args.domain), fases
+    if "subdomain" in fases:
+        fases.remove("subdomain")
+        info("Target adalah subdomain spesifik, fase 'subdomain' dilewati.")
+    return _clean_target(args.subdomain), fases
+
+
 def _clean_target(raw_target: str) -> str:
     # Hapus whitespace, http(s)://, dan wildcard prefix (*.)
     t = raw_target.strip()
@@ -768,7 +805,17 @@ def main():
             err(f"mode TUI tidak bisa dimuat: {e}")
             info("pasang dependensi: pip install -r requirements.txt")
             sys.exit(1)
-        run_tui(args.output, _load_scope(args.scope) if args.scope else None)
+        scope = _load_scope(args.scope) if args.scope else None
+        autorun = None
+        if args.domain or args.subdomain:
+            target, fases = _pick_target_fases(args)
+            if scope is not None:
+                in_scope, reason = scope.check(target)
+                if not in_scope:
+                    err(f"{target} di luar scope ({reason})")
+                    sys.exit(1)
+            autorun = {"target": target, "fases": fases, "resume": args.resume}
+        run_tui(args.output, scope, autorun=autorun)
         sys.exit(0)
 
     banner()
@@ -822,28 +869,12 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    # ── tentukan daftar fase ─────────────────────────────────────
-    if args.fase:
-        fases = [f.strip() for f in args.fase.split(",") if f.strip()]
-        invalid = [f for f in fases if f not in FASE_LIST]
-        if invalid:
-            err(f"fase tidak dikenal: {', '.join(invalid)}")
-            err(f"gunakan --list-fase untuk melihat daftar fase")
-            sys.exit(1)
-    elif args.A:
-        fases = ["subdomain", "dns", "ports"]
+    # ── tentukan target(s) dan daftar fase ───────────────────────
+    if args.domain or args.subdomain:
+        target, fases = _pick_target_fases(args)
+        targets = [target]
     else:
-        fases = list(FASE_LIST)
-
-    # ── tentukan target(s) ───────────────────────────────────────
-    if args.domain:
-        targets = [_clean_target(args.domain)]
-    elif args.subdomain:
-        targets = [_clean_target(args.subdomain)]
-        if "subdomain" in fases:
-            fases.remove("subdomain")
-            info("Target adalah subdomain spesifik, fase 'subdomain' dilewati.")
-    else:
+        fases = _pick_fases(args)
         raw_targets = _load_targets_from_file(args.file)
         targets = [_clean_target(t) for t in raw_targets]
 
