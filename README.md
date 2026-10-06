@@ -46,6 +46,8 @@ source ~/.bashrc   # atau source ~/.zshrc
 ## Cara pakai
 
 ```bash
+recon                                         # tanpa argumen: buka mode TUI
+recon -d example.com --tui                    # recon satu domain dalam tampilan TUI
 recon -d example.com                          # recon lengkap satu domain
 recon -d example.com -A                       # pemetaan jaringan saja (subdomain, dns, port)
 recon -d example.com --fase subdomain,urls    # pilih fase tertentu
@@ -75,9 +77,44 @@ recon --check                                 # cek tools dan API mana yang suda
 | `--notify` | kirim ringkasan ke Discord/Slack/Telegram |
 | `--menu` | pilih target in-scope dan fase lewat menu keyboard (butuh `--scope`) |
 | `--chat` | mode asisten AI interaktif |
+| `--tui` | mode layar penuh; dengan `-d`/`-s` langsung recon target itu |
 | `--list-fase` | tampilkan semua fase yang tersedia |
 | `--check` | cek status semua tools |
 | `--setup-ai` | set atau ganti provider AI |
+
+---
+
+## Mode TUI
+
+Jalankan `recon` tanpa argumen untuk membuka mode layar penuh. Sebut targetnya di prompt,
+misalnya `example.com fokus urls,js`, lalu konfirmasi dengan `y`. Kalau AI aktif, kamu bisa
+bicara biasa saja.
+
+```
+recon                                              # buka TUI, pilih target di dalam
+recon -d example.com --tui --fase subdomain,dns    # langsung recon, tanpa konfirmasi
+recon -s api.example.com --tui --resume            # lanjutkan run terakhir di TUI
+```
+
+Isi layar:
+
+- **panel fase** (kiri): status tiap fase (`▶` jalan, `✔` selesai, `✗` gagal, `■` dihentikan,
+  `↷` dilewati) beserta lama jalannya, plus progress total
+- **log** (kanan): output tiap fase secara langsung
+- **panel temuan** (bawah log): muncul begitu ada temuan, berisi severity, jenis, dan detail
+  (CORS, takeover, bucket terbuka, introspeksi GraphQL, potential secret)
+
+| Tombol | Fungsi |
+| ------ | ------ |
+| `ctrl+x` dua kali | hentikan recon yang sedang jalan; fase yang terpotong diulang saat `--resume` |
+| `ctrl+t` | pindah fokus ke tabel temuan dan kembali |
+| `esc` | batalkan rencana yang belum dikonfirmasi, kembali ke prompt |
+| `ctrl+l` | bersihkan log |
+| `ctrl+c` | keluar (recon yang jalan dihentikan dulu) |
+
+`--tui` belum bisa digabung dengan `-f`, `--recon-subs`, `--verify`, `--diff`, dan `--notify`.
+Untuk itu pakai mode CLI biasa. Kalau output tidak ke terminal (misalnya di-pipe), `recon` tanpa
+argumen menampilkan bantuan seperti biasa.
 
 ---
 
